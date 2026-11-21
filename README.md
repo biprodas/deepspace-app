@@ -24,8 +24,9 @@ are refused by the server.
 - Reveal with answer distribution, explanation and source
 - Speed-based scoring, live rankings, final podium
 
-Full scope: [docs/features.md](docs/features.md). Technical design:
-[docs/trd.md](docs/trd.md).
+Product requirements: [docs/prd.md](docs/prd.md). Full scope:
+[docs/features.md](docs/features.md). Technical design:
+[docs/trd.md](docs/trd.md). Data: [docs/schema.md](docs/schema.md).
 
 ## Tech stack
 

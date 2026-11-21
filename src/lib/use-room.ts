@@ -64,8 +64,14 @@ export function useRoom(roomId: string) {
     else if (me) role = 'player'
   }
 
+  // On a dropped socket the SDK re-subscribes with status 'loading' but keeps
+  // the last records, so only a first load (nothing yet) counts as loading;
+  // a reconnect keeps showing the last screen under the banner.
+  const firstLoad =
+    (rooms.status === 'loading' && !room) || (players.status === 'loading' && players.records.length === 0)
+
   return {
-    status: rooms.status === 'loading' || players.status === 'loading' ? 'loading' : 'ready',
+    status: firstLoad ? 'loading' : 'ready',
     room,
     quiz: quizzes.records[0],
     players: active,

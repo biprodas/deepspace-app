@@ -32,10 +32,18 @@ interface JoinCodeFormProps {
   variant: Variant
   inputId?: string
   prefillFromQuery?: boolean
+  /** The "you'll sign in first" line under the hero form; off where you already are. */
+  signInHint?: boolean
   className?: string
 }
 
-export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: JoinCodeFormProps) {
+export function JoinCodeForm({
+  variant,
+  inputId,
+  prefillFromQuery,
+  signInHint = true,
+  className,
+}: JoinCodeFormProps) {
   const navigate = useNavigate()
   const fallbackId = useId()
   const id = inputId ?? fallbackId
@@ -121,7 +129,7 @@ export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: 
         {submit}
       </div>
       {errorText}
-      {variant === 'hero' && !error && (
+      {variant === 'hero' && signInHint && !error && (
         <p className="mt-2 text-sm text-muted-foreground">You&apos;ll sign in, then go straight to the lobby.</p>
       )}
     </form>

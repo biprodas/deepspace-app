@@ -236,10 +236,25 @@ on the server → state check → `tools.*` writes →
 
 ### M5 — Resilience and UI states (F7, F8)
 
-- Refresh/reconnect restore (everything renders from `rooms` + the current
-  round + own `answers`), offline markers, "host disconnected" banner, late
-  joiners, error screens (generation failed, room full, removed, finished).
-- Tests: refresh mid-question for player and host in `collab.spec.ts`.
+- Already in place from M2–M4: refresh restore (screens render only from
+  `rooms` + current round + own `answers`), "host disconnected" banners,
+  late joiners (`firstRoundNumber`), and the error screens (generation
+  failed / interrupted, room full, removed, finished).
+- Added: `ConnectionBanner` above every room state ("Reconnecting… your
+  answers and score are safe"). Fixed a real blank-out: on a dropped socket
+  the SDK re-subscribes with status `loading` but keeps the records, and
+  `useRoom` treated that as a first load, swapping the game for "Loading
+  room…"; it now counts only a first load as loading.
+- Added: offline markers in the host's in-game standings (score kept).
+- Added: a real `/home` — code field plus "Your games" (open rooms you host
+  or play in, most recent first, idle > 24 h hidden, max 5) with
+  Rejoin links, so closing the tab isn't the end of the game.
+- Tests: `tests/resilience.spec.ts` — host refresh mid-question and while
+  paused (clock stays frozen), late joiner sits out then plays, removed
+  mid-game is shown out and refused, a player who leaves shows offline with
+  their score kept and gets back in from /home, and a socket cut by the
+  test shows the banner, keeps the screen, and recovers into the new
+  question.
 - **Done when:** features.md F7's "done when".
 
 ### M6 — Should-haves (only after M3 is deployed and verified)

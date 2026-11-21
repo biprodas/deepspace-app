@@ -61,7 +61,7 @@ export function HostGame({ state }: { state: RoomState }) {
           <RevealPanel question={question} round={round.data} size="lg" />
           <section>
             <h2 className="mb-3 font-display text-lg font-bold">Standings</h2>
-            <StandingsList standings={standings} names={names} limit={8} />
+            <StandingsList standings={standings} names={names} limit={8} online={online} />
           </section>
         </div>
       ) : (

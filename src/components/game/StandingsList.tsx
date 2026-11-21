@@ -13,10 +13,12 @@ interface StandingsListProps {
   userId?: string
   /** Show only the top N (the viewer's own row is appended if cut). */
   limit?: number
+  /** Who is connected right now; when given, offline players are marked (their score stays). */
+  online?: Set<string>
   className?: string
 }
 
-export function StandingsList({ standings, names, userId, limit, className }: StandingsListProps) {
+export function StandingsList({ standings, names, userId, limit, online, className }: StandingsListProps) {
   const sorted = [...standings].sort((a, b) => a.rank - b.rank)
   let rows = limit ? sorted.slice(0, limit) : sorted
   const mine = sorted.find((s) => s.userId === userId)
@@ -44,6 +46,9 @@ export function StandingsList({ standings, names, userId, limit, className }: St
               {names.get(s.userId) ?? 'Player'}
             </span>
             {s.userId === userId && <span className="text-xs text-muted-foreground">you</span>}
+            {online && !online.has(s.userId) && (
+              <span data-testid="standing-offline" className="text-xs text-muted-foreground">offline</span>
+            )}
           </span>
           <span className="hidden text-xs text-muted-foreground sm:inline">{s.correctCount} correct</span>
           <span data-testid="standing-score" className="w-16 text-right font-mono font-bold tabular-nums">

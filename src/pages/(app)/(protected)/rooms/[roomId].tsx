@@ -9,14 +9,25 @@ import { DoorOpen, Flag, UserX } from 'lucide-react'
 import { Button, EmptyState } from '@/components/ui'
 import { HostLobby } from '@/components/room/HostLobby'
 import { PlayerLobby } from '@/components/room/PlayerLobby'
+import { ConnectionBanner } from '@/components/game/ConnectionBanner'
 import { FinalScreen } from '@/components/game/FinalScreen'
 import { HostGame } from '@/components/game/HostGame'
 import { PlayerGame } from '@/components/game/PlayerGame'
 import { useAction } from '@/lib/use-action'
-import { useRoom } from '@/lib/use-room'
+import { useRoom, type RoomState } from '@/lib/use-room'
 import { isClosedStatus } from '@/schemas/game-types'
 
 export default function RoomPage() {
+  // Above every state, so a dropped connection is always explained.
+  return (
+    <>
+      <ConnectionBanner />
+      <RoomBody />
+    </>
+  )
+}
+
+function RoomBody() {
   const { roomId = '' } = useParams()
   const navigate = useNavigate()
   const state = useRoom(roomId)
@@ -72,7 +83,11 @@ export default function RoomPage() {
   }
 
   const isPlayer = role === 'player'
-  switch (room.data.status) {
+  return <RoomScreen state={state} isPlayer={isPlayer} />
+}
+
+function RoomScreen({ state, isPlayer }: { state: RoomState; isPlayer: boolean }) {
+  switch (state.room?.data.status) {
     case 'lobby':
       return isPlayer ? <PlayerLobby state={state} /> : <HostLobby state={state} />
     case 'question':
@@ -82,5 +97,7 @@ export default function RoomPage() {
     case 'final':
     case 'cancelled':
       return <FinalScreen state={state} />
+    default:
+      return null
   }
 }

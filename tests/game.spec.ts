@@ -20,7 +20,7 @@ const GRACE_MS = 300
 /** A quiz whose explanations are unique strings we can look for on the wire. */
 async function setUpGame(host: CallAction, players: CallAction[], questionCount = 2) {
   const secret = `secret-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  const { data: quiz } = await host<{ quizId: string }>('createQuiz', { title: 'Game test' })
+  const { data: quiz } = await host<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Game test' })
   for (let i = 0; i < questionCount; i++) {
     await host('addQuestion', {
       quizId: quiz!.quizId,

@@ -4,9 +4,10 @@
  */
 
 import { useState } from 'react'
-import { ArrowDown, ArrowUp, Check, Pencil, Timer, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, Loader2, Pencil, RefreshCw, Timer, Trash2 } from 'lucide-react'
 import { Badge, Button, ConfirmModal, cn } from '@/components/ui'
 import { AnswerChip } from '@/components/landing/bits'
+import { SourceQuote } from '@/components/game/RevealPanel'
 import type { AnswerKey, Question } from '@/schemas/game-types'
 import { QuestionForm, type QuestionValues } from './QuestionForm'
 
@@ -22,6 +23,10 @@ interface QuestionCardProps {
   onApprove: (approved: boolean) => void
   onMove: (direction: 'up' | 'down') => void
   onDelete: () => Promise<void>
+  /** Set for AI-drafted quizzes: ask Claude for a replacement question. */
+  onRegenerate?: () => void
+  /** A replacement is being drafted; the card is read-only until it lands. */
+  regenerating?: boolean
 }
 
 export function QuestionCard({
@@ -36,6 +41,8 @@ export function QuestionCard({
   onApprove,
   onMove,
   onDelete,
+  onRegenerate,
+  regenerating,
 }: QuestionCardProps) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -144,8 +151,24 @@ export function QuestionCard({
       {answerKey?.explanation && (
         <p className="mt-3 text-sm text-muted-foreground">{answerKey.explanation}</p>
       )}
+      {answerKey?.sourceQuote && (
+        <div className="mt-3 text-sm">
+          <SourceQuote quote={answerKey.sourceQuote} url={answerKey.sourceUrl} />
+        </div>
+      )}
 
-      <footer className="mt-4 flex justify-end">
+      <footer className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        {regenerating ? (
+          <span role="status" className="mr-auto inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Drafting a replacement…
+          </span>
+        ) : (
+          onRegenerate && (
+            <Button variant="ghost" size="sm" className="mr-auto" loading={busy('regenerate')} onClick={onRegenerate}>
+              <RefreshCw /> Regenerate
+            </Button>
+          )
+        )}
         {question.approved ? (
           <Button variant="ghost" size="sm" loading={busy('approve')} onClick={() => onApprove(false)}>
             Move back to draft

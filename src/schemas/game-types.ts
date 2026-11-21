@@ -7,6 +7,7 @@ export const SOURCE_TYPES = ['manual', 'wikipedia', 'notes'] as const
 export const DIFFICULTIES = ['easy', 'mixed', 'hard'] as const
 export const QUIZ_STATUSES = ['generating', 'ready', 'failed'] as const
 export const GENERATION_STATUSES = ['pending', 'running', 'completed', 'failed'] as const
+export const GENERATION_STAGES = ['fetching', 'writing', 'saving'] as const
 export const ROOM_STATUSES = ['lobby', 'question', 'reveal', 'paused', 'final', 'cancelled'] as const
 export const ROUND_STATUSES = ['active', 'revealed', 'skipped'] as const
 
@@ -14,6 +15,7 @@ export type SourceType = (typeof SOURCE_TYPES)[number]
 export type Difficulty = (typeof DIFFICULTIES)[number]
 export type QuizStatus = (typeof QUIZ_STATUSES)[number]
 export type GenerationStatus = (typeof GENERATION_STATUSES)[number]
+export type GenerationStage = (typeof GENERATION_STAGES)[number]
 export type RoomStatus = (typeof ROOM_STATUSES)[number]
 export type RoundStatus = (typeof ROUND_STATUSES)[number]
 
@@ -54,10 +56,21 @@ export interface Generation {
   quizId: string
   jobId?: string
   sourceType: SourceType
+  /** Wikipedia topics as typed (sourceType `wikipedia`). */
+  topics?: string[]
+  /** Pasted notes (sourceType `notes`). Owner-only, like the whole row. */
+  notes?: string
+  difficulty: Difficulty
   questionCount: number
+  /** Set when this run regenerates one question in place. */
+  replaceQuestionId?: string
   model: string
   promptVersion: string
   status: GenerationStatus
+  /** What the running job is doing, for the progress line. */
+  stage?: GenerationStage
+  /** Stamped by the running job every few seconds; a silent run is treated as dead. */
+  heartbeatAt?: number
   droppedCount: number
   inputTokens?: number
   outputTokens?: number

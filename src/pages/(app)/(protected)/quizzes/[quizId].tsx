@@ -11,12 +11,22 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
-import { ArrowLeft, ListChecks, Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCheck, ListChecks, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import { Badge, Button, ConfirmModal, EmptyState, Input } from '@/components/ui'
+import { GenerationBanner } from '@/components/quiz/GenerationBanner'
 import { QuestionCard } from '@/components/quiz/QuestionCard'
 import { QuestionForm, type QuestionValues } from '@/components/quiz/QuestionForm'
+import { useServerNow } from '@/lib/clock'
+import { isStaleRun } from '@/lib/generation'
 import { useAction } from '@/lib/use-action'
-import { isClosedStatus, type AnswerKey, type Question, type Quiz, type Room } from '@/schemas/game-types'
+import {
+  isClosedStatus,
+  type AnswerKey,
+  type Generation,
+  type Question,
+  type Quiz,
+  type Room,
+} from '@/schemas/game-types'
 
 export default function QuizEditorPage() {
   const { quizId = '' } = useParams()
@@ -33,6 +43,16 @@ export default function QuizEditorPage() {
   const answerKeys = useQuery<AnswerKey>('answer_keys', { where: { quizId } })
   const rooms = useQuery<Room>('rooms', { where: { quizId } })
   const openRooms = rooms.records.filter((r) => !isClosedStatus(r.data.status))
+  // Owner-only rows: the quiz's AI runs (the full draft and any regenerations).
+  const generations = useQuery<Generation>('generations', { where: { quizId } })
+  const unfinished = generations.records.filter((g) => g.data.status === 'pending' || g.data.status === 'running')
+  const now = useServerNow(5_000, unfinished.length > 0)
+  // Regenerations still alive (a run whose job died stops counting).
+  const replacing = new Set(
+    unfinished
+      .filter((g) => g.data.replaceQuestionId && !isStaleRun(g.data, Date.parse(g.createdAt), now))
+      .map((g) => g.data.replaceQuestionId),
+  )
 
   const keysByQuestion = useMemo(
     () => new Map(answerKeys.records.map((k) => [k.data.questionId, k.data])),
@@ -58,6 +78,17 @@ export default function QuizEditorPage() {
 
   const isOwner = user?.id === quiz.data.ownerId
   const approvedCount = questions.records.filter((q) => q.data.approved).length
+  const drafts = questions.records.filter((q) => !q.data.approved)
+  const fromSource = quiz.data.sourceType !== 'manual'
+  const mainRun = generations.records.find((g) => g.recordId === quiz.data.generationId)
+  const showRun = mainRun && (mainRun.data.status !== 'completed' || drafts.length > 0)
+
+  async function approveAll() {
+    for (const q of drafts) {
+      const result = await run('updateQuestion', { questionId: q.recordId, approved: true }, 'approveAll')
+      if (!result.success) break
+    }
+  }
 
   const saveQuestion = (questionId: string) => async (values: QuestionValues) =>
     (await run('updateQuestion', { questionId, ...values }, `save:${questionId}`)).success
@@ -153,6 +184,18 @@ export default function QuizEditorPage() {
         </p>
       ) : (
         <>
+          {showRun && (
+            <div className="mb-6">
+              <GenerationBanner generation={mainRun.data} createdAt={mainRun.createdAt} />
+            </div>
+          )}
+          {drafts.length > 1 && (
+            <div className="mb-4 flex justify-end">
+              <Button variant="outline" size="sm" loading={pending === 'approveAll'} onClick={() => void approveAll()}>
+                <CheckCheck /> Approve all {drafts.length} drafts
+              </Button>
+            </div>
+          )}
           <section aria-label="Questions" className="space-y-4">
             {questions.records.map((q, i) => (
               <QuestionCard
@@ -174,6 +217,12 @@ export default function QuizEditorPage() {
                 onDelete={async () => {
                   await run('deleteQuestion', { questionId: q.recordId }, `delete:${q.recordId}`)
                 }}
+                onRegenerate={
+                  fromSource
+                    ? () => void run('regenerateQuestion', { questionId: q.recordId }, `regenerate:${q.recordId}`)
+                    : undefined
+                }
+                regenerating={replacing.has(q.recordId)}
               />
             ))}
           </section>

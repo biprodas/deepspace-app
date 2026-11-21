@@ -14,7 +14,6 @@ import {
   JobRoom,
   PresenceRoom,
   RecordRoom,
-  resolveAppRole,
   workerErrorHandler,
   YjsRoom,
 } from 'deepspace/worker'
@@ -65,15 +64,20 @@ export class AppCronRoom extends CronRoom<Env> {
   }
 }
 
-/** Runs durable background work defined in src/jobs.ts. */
+/**
+ * Runs durable background work defined in src/jobs.ts.
+ *
+ * Only server code enqueues here (`enqueueJob` from an action, which the
+ * socket checks below don't apply to), so no browser may read, enqueue,
+ * cancel or retry jobs: a member could otherwise start owner-billed AI
+ * runs around the daily cap, or watch other users' jobs. Progress reaches
+ * the owner through their own `generations` row instead.
+ */
 export class AppJobRoom extends JobRoom<Env> {
   constructor(state: DurableObjectState, env: Env) {
     super(state, env, {
-      authorizeWrite: async (user) => {
-        if (user.userId.startsWith('anon-')) return false
-        const role = await resolveAppRole(env, user.userId)
-        return role === 'member' || role === 'admin'
-      },
+      authorizeWrite: () => false,
+      authorizeRead: () => false,
     })
   }
 

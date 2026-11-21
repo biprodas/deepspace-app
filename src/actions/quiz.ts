@@ -7,13 +7,17 @@
  * These actions write both together.
  */
 
-import type { ActionTools } from 'deepspace/worker'
+import { enqueueJob, type ActionTools } from 'deepspace/worker'
 import { z } from 'zod'
-import { newQuestion, questionEdit, quizTitle } from '../lib/quiz-input'
-import type { AnswerKey, Question, Quiz, Room } from '../schemas/game-types'
+import { DAILY_GENERATION_LIMIT } from '../lib/game-rules'
+import { GENERATE_QUESTIONS, INTERRUPTED_ERROR, isStaleRun, MODEL, PROMPT_VERSION } from '../lib/generation'
+import { newQuestion, newQuiz, questionEdit, quizTitle } from '../lib/quiz-input'
+import type { AnswerKey, Generation, Question, Quiz, Room } from '../schemas/game-types'
+import type { Env } from '../../worker'
 import {
   ActionError,
   defineAction,
+  findRecord,
   getRecord,
   isClosed,
   queryRecords,
@@ -56,21 +60,176 @@ async function requireNoLiveRoom(tools: ActionTools, quizId: string) {
   }
 }
 
+/**
+ * The credit guard (docs/trd.md §8): a rolling 24-hour cap per user,
+ * counted from `generations` rows, and one run at a time.
+ */
+async function requireGenerationAllowance(tools: ActionTools, userId: string) {
+  const runs = await queryRecords<Generation>(tools, 'generations', { userId }, { orderBy: 'createdAt', orderDir: 'desc', limit: 100 })
+  const now = Date.now()
+  const dayAgo = now - 24 * 60 * 60 * 1000
+  const unfinished = runs.filter((r) => r.data.status === 'pending' || r.data.status === 'running')
+  const stale = unfinished.filter((r) => isStaleRun(r.data, Date.parse(r.createdAt), now))
+  await Promise.all(stale.map((r) => settleInterruptedRun(tools, r)))
+  if (unfinished.length > stale.length) {
+    throw new ActionError('Wait for your current generation to finish', 'generation_in_progress')
+  }
+  if (runs.filter((r) => Date.parse(r.createdAt) > dayAgo).length >= DAILY_GENERATION_LIMIT) {
+    throw new ActionError(
+      `You’ve used today’s ${DAILY_GENERATION_LIMIT} AI generations. Write questions by hand, or try again tomorrow.`,
+      'daily_limit',
+    )
+  }
+}
+
+/**
+ * Closes a run whose job died without finishing (no heartbeat), so it stops
+ * blocking the user and the quiz stops saying "generating".
+ */
+async function settleInterruptedRun(tools: ActionTools, run: Rec<Generation>) {
+  await tools.update('generations', run.recordId, {
+    status: 'failed',
+    error: INTERRUPTED_ERROR,
+    completedAt: Date.now(),
+  })
+  if (run.data.replaceQuestionId) return
+  const quiz = await findRecord<Quiz>(tools, 'quizzes', run.data.quizId)
+  if (quiz?.data.status === 'generating') await tools.update('quizzes', quiz.recordId, { status: 'failed' })
+}
+
+type SearchHit = { title?: string }
+
+/**
+ * Maps each typed topic to a Wikipedia article title before anything is
+ * created or counted, so a typo costs the user nothing but a correction.
+ * Plain search misses misspellings ("Photosysthesis"); a fuzzy search
+ * (`term~`) finds what they meant, which we offer rather than swap in.
+ */
+async function resolveWikipediaTopics(tools: ActionTools, topics: string[]): Promise<string[]> {
+  const search = async (query: string) => {
+    const res = await tools.integration<SearchHit[]>('wikipedia/search-pages', { query, limit: 1 })
+    if (!res.success) throw new ActionError(`Wikipedia search failed: ${res.error}`, 'wikipedia_unavailable')
+    return Array.isArray(res.data) ? res.data[0]?.title : undefined
+  }
+
+  const titles: string[] = []
+  for (const topic of topics) {
+    const title = await search(topic)
+    if (title) {
+      titles.push(title)
+      continue
+    }
+    const suggestion = await search(`${topic.replace(/~/g, '')}~`)
+    throw new ActionError(
+      suggestion
+        ? `No Wikipedia article for “${topic}”. Did you mean “${suggestion}”?`
+        : `No Wikipedia article for “${topic}”. Check the spelling or try a broader topic.`,
+      'topic_not_found',
+      { topic, ...(suggestion ? { suggestion } : {}) },
+    )
+  }
+  return [...new Set(titles)]
+}
+
+/** Records the run, then queues the job that does it (src/jobs.ts). */
+async function startGeneration(
+  tools: ActionTools,
+  env: Env,
+  userId: string,
+  input: Pick<Generation, 'quizId' | 'sourceType' | 'topics' | 'notes' | 'difficulty' | 'questionCount' | 'replaceQuestionId'>,
+): Promise<string> {
+  const generation: Generation = {
+    ...input,
+    userId,
+    model: MODEL,
+    promptVersion: PROMPT_VERSION,
+    status: 'pending',
+    droppedCount: 0,
+  }
+  const { recordId: generationId } = unwrap(await tools.create('generations', defined({ ...generation })))
+  try {
+    // maxAttempts 1: a failed run is reported, never silently re-billed.
+    await enqueueJob(env.JOB_ROOMS, `app:${env.DEEPSPACE_APP_ID}`, GENERATE_QUESTIONS, { generationId }, {
+      enqueuedBy: userId,
+      maxAttempts: 1,
+    })
+  } catch (err) {
+    await tools.update('generations', generationId, { status: 'failed', error: 'Couldn’t start the job' })
+    throw err
+  }
+  return generationId
+}
+
 // ─── Actions ─────────────────────────────────────────────
 
-/** A hand-written quiz: ready at once, questions added one by one. */
-const createQuiz = defineAction(z.object({ title: quizTitle }), async ({ userId, tools }, p) => {
+/**
+ * Starts a quiz. By hand: ready at once, questions added one by one. From
+ * Wikipedia topics or pasted notes: status `generating` until the
+ * `generate-questions` job finishes; drafts arrive unapproved.
+ */
+const createQuiz = defineAction(newQuiz, async ({ userId, tools, env }, p) => {
+  if (p.sourceType === 'manual') {
+    const quiz: Quiz = {
+      ownerId: userId,
+      title: p.title,
+      sourceType: 'manual',
+      sourceUrls: [],
+      difficulty: 'mixed',
+      status: 'ready',
+    }
+    const { recordId: quizId } = unwrap(await tools.create('quizzes', { ...quiz }))
+    return { quizId }
+  }
+
+  await requireGenerationAllowance(tools, userId)
+  // Article titles, not the raw input: the job fetches these directly.
+  const articles = p.sourceType === 'wikipedia' ? await resolveWikipediaTopics(tools, p.topics) : []
   const quiz: Quiz = {
     ownerId: userId,
-    title: p.title,
-    sourceType: 'manual',
+    title: p.title ?? (p.sourceType === 'wikipedia' ? articles.join(', ') : 'My notes'),
+    sourceType: p.sourceType,
     sourceUrls: [],
-    difficulty: 'mixed',
-    status: 'ready',
+    difficulty: p.difficulty,
+    status: 'generating',
   }
   const { recordId: quizId } = unwrap(await tools.create('quizzes', { ...quiz }))
+  const generationId = await startGeneration(tools, env, userId, {
+    quizId,
+    sourceType: p.sourceType,
+    ...(p.sourceType === 'wikipedia' ? { topics: articles } : { notes: p.notes }),
+    difficulty: p.difficulty,
+    questionCount: p.questionCount,
+  })
+  unwrap(await tools.update('quizzes', quizId, { generationId }))
   return { quizId }
 })
+
+/**
+ * Replaces one question with a freshly drafted one from the same source.
+ * The old question stays until the new one has passed every check.
+ */
+const regenerateQuestion = defineAction(
+  z.object({ questionId: recordId }),
+  async ({ userId, tools, env }, p) => {
+    const { quiz } = await loadOwnedQuestion(tools, p.questionId, userId)
+    await requireNoLiveRoom(tools, quiz.recordId)
+    if (quiz.data.sourceType === 'manual' || !quiz.data.generationId) {
+      throw new ActionError('Only AI-drafted quizzes have a source to regenerate from', 'no_source')
+    }
+    const source = await getRecord<Generation>(tools, 'generations', quiz.data.generationId, 'Generation')
+    await requireGenerationAllowance(tools, userId)
+    const generationId = await startGeneration(tools, env, userId, {
+      quizId: quiz.recordId,
+      sourceType: source.data.sourceType,
+      topics: source.data.topics,
+      notes: source.data.notes,
+      difficulty: source.data.difficulty,
+      questionCount: 1,
+      replaceQuestionId: p.questionId,
+    })
+    return { generationId }
+  },
+)
 
 const renameQuiz = defineAction(
   z.object({ quizId: recordId, title: quizTitle }),
@@ -132,6 +291,8 @@ const addQuestion = defineAction(
       await tools.remove('questions', questionId)
       unwrap(keyResult)
     }
+    // A quiz whose AI run failed becomes playable once it has a question.
+    if (quiz.data.status === 'failed') unwrap(await tools.update('quizzes', p.quizId, { status: 'ready' }))
     return { questionId }
   },
 )
@@ -200,6 +361,7 @@ const deleteQuestion = defineAction(
 
 export const quizActions = {
   createQuiz,
+  regenerateQuestion,
   renameQuiz,
   deleteQuiz,
   addQuestion,

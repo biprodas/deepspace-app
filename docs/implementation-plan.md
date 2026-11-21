@@ -190,25 +190,48 @@ on the server → state check → `tools.*` writes →
 
 ### M4 — AI generation (F2 AI path)
 
-- `src/lib/generation.ts` — Wikipedia HTML → text, notes cap, prompt
-  (source delimited as data), Zod question schema, option de-dup, quote
-  normalization + matching.
-- `createQuiz` source modes (`wikipedia` 1–3 topics / `notes`): checks the
-  daily cap by counting today's `generations` rows, creates the quiz as
-  `generating` + a `generations` row `pending`, then
-  ``enqueueJob(env.JOB_ROOMS, `app:${env.DEEPSPACE_APP_ID}`,
-  'generate-questions', { generationId })``.
+- `src/lib/generation.ts` — Wikipedia HTML → text (quote-aware tag
+  scanner: Wikipedia's `data-mw` attributes contain raw `>`; drops tables,
+  infoboxes, navboxes, figures, citations, styles; stops at "See also" /
+  "References"), truncation, prompt (source delimited as data), reply
+  parsing, per-draft checks (shape, 4 distinct options, index, no repeats,
+  quote really in the source), and `draftQuestions` (draft → check → one
+  retry for the rejects with their reasons → drop the rest).
+- `createQuiz` is a discriminated union on `sourceType` (`manual` /
+  `wikipedia` 1–3 topics / `notes` 200–20,000 chars; 5–10 questions;
+  difficulty). AI modes check the credit guard (one run at a time, 10 per
+  rolling 24 h); Wikipedia topics are then resolved to article titles
+  *before* anything is created, and a miss is refused as `topic_not_found`
+  with a fuzzy-search (`term~`) suggestion the builder offers as a one-click
+  fix ("Photosysthesis" → "Photosynthesis"); then it creates the quiz
+  `generating` + a `pending` `generations` row holding the resolved titles
+  or the notes, then `enqueueJob(…, 'generate-questions',
+  { generationId }, { enqueuedBy, maxAttempts: 1 })`.
 - `src/jobs.ts` — `generate-questions`: decision 2's guard → fetch sources
-  (`wikipedia/search-pages` → `wikipedia/get-page-content`) →
-  `anthropic/chat-completion` (`claude-sonnet-5-5`, temperature 0.3) →
-  validate → retry the invalid ones once → write unapproved `questions` +
-  `answer_keys` → quiz `ready`/`failed`; the generation row gets
-  `droppedCount`, tokens and `completedAt`. `ctx.progress()` at each step.
-- `regenerateQuestion` — same pipeline with count 1; replaces one question.
-- UI: builder form with topic / notes tabs, count, difficulty; review screen
-  shows `useJobs` progress and the dropped count.
-- Tests: `generation.test.ts` on a recorded Wikipedia page + recorded model
-  output (no live spend).
+  (`wikipedia/get-page-content` for each resolved title, 12k chars per
+  topic) → `anthropic/chat-completion` (`claude-sonnet-5-5`, temperature
+  0.3) via `draftQuestions` → write unapproved `questions` + `answer_keys`
+  → quiz `ready`/`failed` with `sourceUrls`; the row gets `stage` as it
+  goes, then `droppedCount`, tokens and `completedAt`, or `error`.
+- `regenerateQuestion` — same pipeline with count 1 from the quiz's
+  original inputs; the new draft takes the old one's place and time limit,
+  and the old one is removed only after the new one passed the checks.
+- Liveness: the job stamps `heartbeatAt` every 15 s. A pending/running run
+  silent for 60 s (worker recycled mid-call, deploy) is settled as failed
+  ("interrupted") the next time the user starts a run, and the editor shows
+  it as interrupted instead of spinning, so a dead job never blocks anyone.
+- The job queue is closed to browsers (decision 2 hardened): `AppJobRoom`
+  `authorizeRead`/`authorizeWrite` return false, so progress is shown from
+  the owner-only `generations` row rather than `useJobs`.
+- UI: builder with Wikipedia / notes / by-hand tabs, question-count slider,
+  difficulty; editor shows `GenerationBanner` (progress, failure reason,
+  dropped count), "Approve all drafts", per-question "Regenerate", and each
+  answer's source sentence + link.
+- Tests: `generation.test.ts` (HTML fixture shaped like Wikipedia's,
+  quote matching, prompt, reply parsing, the retry loop with a scripted
+  model; no live spend); `tests/generation.spec.ts` (every bad request
+  refused before queueing; regenerate refused for non-owners and manual
+  quizzes; builder validates client-side).
 - **Done when:** features.md F2's "done when".
 
 ### M5 — Resilience and UI states (F7, F8)

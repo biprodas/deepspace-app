@@ -9,7 +9,7 @@ import type { ActionName } from '../actions'
 
 export type ActionResponse<T> =
   | { success: true; data: T & { serverNow: number } }
-  | { success: false; error: string; code?: string }
+  | { success: false; error: string; code?: string; details?: Record<string, unknown> }
 
 export async function callAction<T = Record<string, never>>(
   name: ActionName,

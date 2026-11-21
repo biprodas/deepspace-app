@@ -5,7 +5,16 @@
  */
 
 import { z } from 'zod'
-import { DEFAULT_TIME_LIMIT, OPTION_COUNT, TIME_LIMITS } from './game-rules'
+import {
+  DEFAULT_TIME_LIMIT,
+  MAX_NOTES_CHARS,
+  MAX_QUESTIONS,
+  MAX_TOPICS,
+  MIN_QUESTIONS,
+  OPTION_COUNT,
+  TIME_LIMITS,
+} from './game-rules'
+import { DIFFICULTIES } from '../schemas/game-types'
 
 export const quizTitle = z.string().trim().min(1, 'Give the quiz a title').max(120)
 
@@ -42,6 +51,42 @@ export const newQuestion = questionEdit.omit({ approved: true }).extend({
 })
 
 export type NewQuestion = z.input<typeof newQuestion>
+
+// ─── New quiz: by hand, from Wikipedia, or from notes ────
+
+const questionCount = z
+  .number()
+  .int()
+  .min(MIN_QUESTIONS, `Between ${MIN_QUESTIONS} and ${MAX_QUESTIONS} questions`)
+  .max(MAX_QUESTIONS, `Between ${MIN_QUESTIONS} and ${MAX_QUESTIONS} questions`)
+const difficulty = z.enum(DIFFICULTIES)
+
+export const newQuiz = z.discriminatedUnion('sourceType', [
+  z.object({ sourceType: z.literal('manual'), title: quizTitle }),
+  z.object({
+    sourceType: z.literal('wikipedia'),
+    title: quizTitle.optional(),
+    topics: z
+      .array(z.string().trim().min(1, 'Topics can’t be blank').max(120))
+      .min(1, 'Add a topic')
+      .max(MAX_TOPICS, `Up to ${MAX_TOPICS} topics`),
+    questionCount,
+    difficulty,
+  }),
+  z.object({
+    sourceType: z.literal('notes'),
+    title: quizTitle,
+    notes: z
+      .string()
+      .trim()
+      .min(200, 'Paste at least a few paragraphs (200+ characters)')
+      .max(MAX_NOTES_CHARS, `Notes can be up to ${MAX_NOTES_CHARS.toLocaleString('en-US')} characters`),
+    questionCount,
+    difficulty,
+  }),
+])
+
+export type NewQuiz = z.input<typeof newQuiz>
 
 /** First validation message for a form, or null when the input is valid. */
 export function firstError(schema: z.ZodType, input: unknown): string | null {

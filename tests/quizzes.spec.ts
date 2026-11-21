@@ -24,7 +24,7 @@ test('owner builds, edits, reorders and deletes a quiz through actions', async (
   const [owner] = await users(1)
   const call = await actionsAs(owner.page)
 
-  const created = await call<{ quizId: string }>('createQuiz', { title: 'Plants 101' })
+  const created = await call<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Plants 101' })
   expect(created).toMatchObject({ success: true })
   const quizId = created.data!.quizId
   expect(created.data!.serverNow).toBeGreaterThan(0)
@@ -50,7 +50,7 @@ test('owner builds, edits, reorders and deletes a quiz through actions', async (
 test('invalid questions are refused with a readable reason', async ({ users }) => {
   const [owner] = await users(1)
   const call = await actionsAs(owner.page)
-  const { data } = await call<{ quizId: string }>('createQuiz', { title: 'Validation' })
+  const { data } = await call<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Validation' })
   const quizId = data!.quizId
 
   const dup = await call('addQuestion', { quizId, ...QUESTION, options: ['A', 'a', 'B', 'C'] })
@@ -68,7 +68,7 @@ test('invalid questions are refused with a readable reason', async ({ users }) =
 test('the editor shows a new question live and marks its answer', async ({ users }) => {
   const [owner] = await users(1)
   const call = await actionsAs(owner.page)
-  const { data } = await call<{ quizId: string }>('createQuiz', { title: 'Editor check' })
+  const { data } = await call<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Editor check' })
   const quizId = data!.quizId
 
   await owner.page.goto(`/quizzes/${quizId}`)
@@ -98,7 +98,7 @@ test.describe('another user', () => {
     const asOwner = await actionsAs(owner.page)
     const asIntruder = await actionsAs(intruder.page)
 
-    const { data } = await asOwner<{ quizId: string }>('createQuiz', { title: 'Mine' })
+    const { data } = await asOwner<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Mine' })
     const quizId = data!.quizId
     const q = await asOwner<{ questionId: string }>('addQuestion', { quizId, ...QUESTION })
     const questionId = q.data!.questionId

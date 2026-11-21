@@ -72,3 +72,15 @@ export function useCountdown(deadline: number | undefined, offset: number, froze
 
   return left
 }
+
+/** Server time, re-read every `everyMs` while `active` (for "has this gone quiet?" checks). */
+export function useServerNow(everyMs: number, active = true): number {
+  const offset = useServerOffset()
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(() => setNow(Date.now()), everyMs)
+    return () => clearInterval(id)
+  }, [everyMs, active])
+  return now + offset
+}

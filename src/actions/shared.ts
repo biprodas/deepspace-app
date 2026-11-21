@@ -18,6 +18,8 @@ export class ActionError extends Error {
   constructor(
     message: string,
     readonly code: string,
+    /** Structured fields the client can act on (e.g. a suggested fix). */
+    readonly details?: Record<string, unknown>,
   ) {
     super(message)
   }
@@ -45,7 +47,9 @@ export function defineAction<S extends z.ZodType, T extends object>(
       const data = await run(ctx, parsed.data)
       return { success: true, data: { ...data, serverNow: Date.now() } }
     } catch (err) {
-      if (err instanceof ActionError) return { success: false, error: err.message, code: err.code }
+      if (err instanceof ActionError) {
+        return { success: false, error: err.message, code: err.code, ...(err.details ? { details: err.details } : {}) }
+      }
       throw err
     }
   }
@@ -61,6 +65,8 @@ export interface Rec<T> {
   recordId: string
   data: T
   createdBy: string
+  /** ISO time. */
+  createdAt: string
 }
 
 /** One record, or `null` when it doesn't exist. */

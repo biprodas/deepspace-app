@@ -19,7 +19,7 @@ const QUESTION = {
 
 /** A quiz with one approved question, and a room for it. */
 async function openRoom(call: CallAction) {
-  const { data: quiz } = await call<{ quizId: string }>('createQuiz', { title: 'Lobby test' })
+  const { data: quiz } = await call<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Lobby test' })
   await call('addQuestion', { quizId: quiz!.quizId, ...QUESTION })
   const room = await call<{ roomId: string; code: string }>('createRoom', { quizId: quiz!.quizId })
   expect(room).toMatchObject({ success: true })
@@ -74,7 +74,7 @@ test('ending a game closes the code and unfreezes the quiz', async ({ users }) =
 test('a room needs an approved question, and codes must be real', async ({ users }) => {
   const [host] = await users(1)
   const call = await actionsAs(host.page)
-  const { data } = await call<{ quizId: string }>('createQuiz', { title: 'Empty' })
+  const { data } = await call<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Empty' })
   expect(await call('createRoom', { quizId: data!.quizId })).toMatchObject({
     success: false,
     code: 'no_approved_questions',

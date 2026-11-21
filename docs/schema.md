@@ -114,10 +114,16 @@ model Generation {
   quizId        String
   jobId         String?          // JobRoom job
   sourceType    SourceType
+  topics        Json?            // string[]: Wikipedia topics as typed
+  notes         String?          // pasted notes (owner-only, like the row)
+  difficulty    Difficulty
   questionCount Int              // requested
+  replaceQuestionId String?      // set when regenerating one question
   model         String           // e.g. claude-sonnet-5-5
   promptVersion String           // e.g. "v1"
   status        GenerationStatus
+  stage         String?          // fetching | writing | saving (progress line)
+  heartbeatAt   DateTime?        // stamped every 15 s by the live job
   droppedCount  Int              @default(0) // invalid questions dropped
   inputTokens   Int?             // if the integration returns usage
   outputTokens  Int?

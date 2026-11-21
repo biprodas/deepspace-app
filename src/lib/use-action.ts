@@ -18,11 +18,13 @@ export function useAction() {
       params: Record<string, unknown> = {},
       /** Identifies this call in `pending`; defaults to the action name. */
       key: string = name,
+      /** `toast: false` when the caller shows the refusal itself. */
+      { toast = true }: { toast?: boolean } = {},
     ): Promise<ActionResponse<T>> => {
       setPending(key)
       try {
         const result = await callAction<T>(name, params)
-        if (!result.success) error(result.error)
+        if (!result.success && toast) error(result.error)
         return result
       } finally {
         setPending(null)

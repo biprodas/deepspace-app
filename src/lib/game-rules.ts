@@ -15,3 +15,14 @@ export const DEFAULT_TIME_LIMIT: TimeLimit = 20
 
 export const OPTION_COUNT = 4
 export const MAX_POINTS = 1000
+
+// ─── AI generation (docs/trd.md §8) ──────────────────────
+
+export const MIN_QUESTIONS = 5
+export const MAX_QUESTIONS = 10
+export const MAX_TOPICS = 3
+export const MAX_NOTES_CHARS = 20_000
+/** Per Wikipedia topic, to keep the prompt within budget. */
+export const MAX_TOPIC_CHARS = 12_000
+/** Generations a user may start per rolling 24 hours (credit guard). */
+export const DAILY_GENERATION_LIMIT = 10

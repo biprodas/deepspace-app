@@ -1,6 +1,6 @@
 /**
  * Top nav — minimal placeholder bar wired to the app's mechanisms:
- * nav.ts-driven links (with role/dev filtering), sign-in via <AuthOverlay>,
+ * nav.ts-driven links (with role/dev filtering), a sign-in link to /sign-in,
  * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
  * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
  * — the shipped tests rely on them. `nav-user-email` is the one that carries
@@ -10,12 +10,13 @@
 
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
+import { useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { APP_NAME } from '../constants'
 import type { Role } from '../constants'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
+import { signInPath } from '../lib/auth-redirect'
 import { ColorModeToggle } from './ColorModeToggle'
 import {
   Avatar,
@@ -33,7 +34,6 @@ export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
 
   const profileReady = !isSignedIn || (!userLoading && !!user)
   const userRole = (user?.role ?? 'anonymous') as Role | 'anonymous'
@@ -136,13 +136,13 @@ export default function Navigation() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <button
+            <Link
               data-testid="nav-sign-in-button"
-              onClick={() => setShowAuthModal(true)}
+              to={signInPath(location.pathname + location.search)}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
               Sign in
-            </button>
+            </Link>
           )}
 
           <button
@@ -161,8 +161,6 @@ export default function Navigation() {
           </div>
         )}
       </nav>
-
-      {showAuthModal && <AuthOverlay onClose={() => setShowAuthModal(false)} />}
     </>
   )
 }

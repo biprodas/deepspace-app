@@ -87,15 +87,29 @@ export async function getRecord<T>(
   return record
 }
 
-/** Equality-filtered query; game sets are small (≤ 50 players, ≤ a few dozen rounds). */
+/**
+ * Equality-filtered query, up to `limit` records (default 500). The room
+ * may stop a long scan early and hand back `nextOffset`; this follows it,
+ * so a recompute never silently works from a partial list.
+ */
 export async function queryRecords<T>(
   tools: ActionTools,
   collection: string,
   where: Record<string, unknown>,
   options: { orderBy?: string; orderDir?: 'asc' | 'desc'; limit?: number } = {},
 ): Promise<Rec<T>[]> {
-  const { records } = unwrap(await tools.query(collection, { where, limit: 500, ...options }))
-  return records as unknown as Rec<T>[]
+  const { limit = 500, ...order } = options
+  const all: Rec<T>[] = []
+  let offset: number | undefined = 0
+  while (offset !== undefined && all.length < limit) {
+    // `offset` is accepted by the room's records.query; the SDK's option type omits it.
+    const page = unwrap(
+      await tools.query(collection, { where, ...order, limit: limit - all.length, offset } as never),
+    ) as { records: unknown[]; nextOffset?: number }
+    all.push(...(page.records as Rec<T>[]))
+    offset = page.nextOffset
+  }
+  return all
 }
 
 /** True when a write failed on a `uniqueOn` constraint. */

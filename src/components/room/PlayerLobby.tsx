@@ -5,10 +5,8 @@
 
 import { useUserLookup } from 'deepspace'
 import { CheckCircle2, WifiOff } from 'lucide-react'
-import type { useRoom } from '@/lib/use-room'
+import type { RoomState } from '@/lib/use-room'
 import { PlayerList } from './PlayerList'
-
-type RoomState = ReturnType<typeof useRoom>
 
 export function PlayerLobby({ state }: { state: RoomState }) {
   const { room, quiz, players, online, me, userId } = state

@@ -155,20 +155,35 @@ on the server → state check → `tools.*` writes →
 ### M3 — Game loop, reveal, final (F4–F6): the core claim
 
 - Actions (`game.ts`): `startQuestion`, `submitAnswer`, `revealQuestion`,
-  `skipQuestion`, `pauseRoom`, `resumeRoom`, `endRoom` — rules as in
-  trd §5–6 plus decisions 4–7. `submitAnswer` takes `userId` only from the
-  action context, scores against `answer_keys` with the server's receive
-  time, and relies on `uniqueOn [roundId, userId]` for the double-answer
-  race.
-- `src/lib/clock.ts` — 3-sample offset + `useCountdown(deadline)`.
-- UI: question screen (phone-first for players, projector-first for the
-  host), "answer locked in", reveal (correct option, distribution,
-  explanation, quote + link), standings, final podium + "questions you got
-  wrong" (own `answers` joined with public `rounds`), host controls (next /
-  skip / pause / resume / end).
-- Tests: `api.spec.ts` — late, duplicate, non-current round, host answer,
-  reveal before deadline, non-host `startQuestion` → all refused.
-  `collab.spec.ts` — host + 2 players reach identical standings.
+  `skipQuestion`, `pauseRoom`, `resumeRoom` (`endRoom` landed in M2) —
+  rules as in trd §5–6 plus decisions 4–7. `submitAnswer` takes `userId`
+  only from the action context, scores against `answer_keys` with the
+  server's receive time, returns only `locked` (never correctness), and
+  relies on `uniqueOn [roundId, userId]` for the double-answer race; a
+  double "start" is stopped by `uniqueOn [roomId, roundNumber]`.
+  `revealQuestion` waits for deadline + grace, so no valid late answer can
+  land after the reveal. Standings are recomputed from answers on
+  `revealed` rounds only, so skipped rounds never score.
+- `queryRecords` follows the room's `nextOffset` paging, so a recompute
+  never works from a partial list.
+- `src/lib/clock.ts` — 3-sample offset (`getServerTime`) +
+  `useCountdown(deadline, offset, frozenMs)`.
+- UI (`components/game/`): `HostGame` (projector: prompt, clock, tiles;
+  pause / resume / skip / reveal, unlocked at deadline + grace like the
+  server / next / end), `PlayerGame` (phone: big tiles → "answer locked
+  in", late-joiner and paused states, result at reveal, host-offline
+  banner), `RevealPanel` (correct option, distribution, explanation, quote
+  + link or "From your notes"), `StandingsList`, `FinalScreen` (podium,
+  rankings, "questions to review" from own `answers` + public `rounds`;
+  also shown, with results so far, when a game is ended early).
+  `rooms/[roomId].tsx` switches on room status.
+- Tests: `tests/game.spec.ts` — host answer, reveal before deadline,
+  non-host start/reveal, duplicate, non-current round, late (real 10 s
+  deadline) → all refused; no explanation or `correctIndex` value in any
+  frame the player receives before reveal (F5); answer on screen survives
+  a refresh and host + player render identical standings; pause blocks
+  answers, resume restores them, skip scores nothing; with 3 accounts, two
+  players' standings and tie order match.
 - **Then deploy**, after the source-control decision in
   [trd.md §12](./trd.md#12-deployment-and-configuration).
 - **Done when:** features.md F4–F6 "done when", on the deployed URL.

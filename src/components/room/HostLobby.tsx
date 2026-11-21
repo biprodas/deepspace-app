@@ -12,11 +12,9 @@ import { Badge, Button, ConfirmModal } from '@/components/ui'
 import { joinPath } from '@/lib/join-code'
 import { MAX_PLAYERS } from '@/lib/game-rules'
 import { useAction } from '@/lib/use-action'
-import type { useRoom } from '@/lib/use-room'
+import type { RoomState } from '@/lib/use-room'
 import type { RoomPlayer } from '@/schemas/game-types'
 import { PlayerList } from './PlayerList'
-
-type RoomState = ReturnType<typeof useRoom>
 
 export function HostLobby({ state }: { state: RoomState }) {
   const { room, quiz, players, online, role } = state
@@ -129,8 +127,15 @@ export function HostLobby({ state }: { state: RoomState }) {
               End game
             </Button>
           )}
-          <p className="text-sm text-muted-foreground">The game controls arrive with the game loop.</p>
-          <Button size="lg" disabled>
+          {players.length === 0 && (
+            <p className="text-sm text-muted-foreground">You can start once someone has joined.</p>
+          )}
+          <Button
+            size="lg"
+            disabled={players.length === 0}
+            loading={pending === 'startQuestion'}
+            onClick={() => void run('startQuestion', { roomId })}
+          >
             Start game
           </Button>
         </footer>

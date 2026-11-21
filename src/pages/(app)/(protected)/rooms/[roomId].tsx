@@ -9,6 +9,9 @@ import { DoorOpen, Flag, UserX } from 'lucide-react'
 import { Button, EmptyState } from '@/components/ui'
 import { HostLobby } from '@/components/room/HostLobby'
 import { PlayerLobby } from '@/components/room/PlayerLobby'
+import { FinalScreen } from '@/components/game/FinalScreen'
+import { HostGame } from '@/components/game/HostGame'
+import { PlayerGame } from '@/components/game/PlayerGame'
 import { useAction } from '@/lib/use-action'
 import { useRoom } from '@/lib/use-room'
 import { isClosedStatus } from '@/schemas/game-types'
@@ -43,7 +46,7 @@ export default function RoomPage() {
       />
     )
   }
-  if (isClosedStatus(room.data.status) && (role === 'outsider' || room.data.status === 'cancelled')) {
+  if (isClosedStatus(room.data.status) && role === 'outsider') {
     return (
       <EmptyState
         icon={<Flag />}
@@ -68,6 +71,16 @@ export default function RoomPage() {
     )
   }
 
-  // Game screens (question, reveal, final) replace these in M3.
-  return role === 'player' ? <PlayerLobby state={state} /> : <HostLobby state={state} />
+  const isPlayer = role === 'player'
+  switch (room.data.status) {
+    case 'lobby':
+      return isPlayer ? <PlayerLobby state={state} /> : <HostLobby state={state} />
+    case 'question':
+    case 'paused':
+    case 'reveal':
+      return isPlayer ? <PlayerGame state={state} /> : <HostGame state={state} />
+    case 'final':
+    case 'cancelled':
+      return <FinalScreen state={state} />
+  }
 }

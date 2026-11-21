@@ -1,0 +1,203 @@
+# Study Arena — Implementation Plan
+
+Companion to [features.md](./features.md) (what), [trd.md](./trd.md) (how)
+and [schema.md](./schema.md) (data). This doc says **in what order** the work
+is built and settles the gaps the TRD left open.
+
+Landing and auth pages are done. Everything below is still to build.
+
+---
+
+## 1. Approach: foundation first, then feature by feature
+
+Not "all backend, then all frontend":
+
+- Schemas, the action plumbing and the pure logic (scoring, validation) are
+  shared by every feature, so they go first, once (**M0**).
+- After that, each feature is a **vertical slice**: its server actions + its
+  screens + its tests, ending in something demoable and deployable. A server
+  action nobody calls is untested guesswork, and every "done when" in
+  features.md is end-to-end (two browsers, curl refusals), so it can only be
+  checked per slice.
+- The order follows [features.md §8](./features.md#8-build-order-5-days): the
+  game loop runs on hand-written questions before AI generation exists, so
+  the riskiest, most external piece (Claude + Wikipedia) can slip without
+  blocking the core.
+
+Each milestone is its own PR and leaves `main` deployable. Every action
+follows [trd.md §6](./trd.md#6-server-actions): Zod parse → load + role check
+on the server → state check → `tools.*` writes →
+`{ success, data: { …, serverNow } }`.
+
+| Milestone | Scope | Features |
+|---|---|---|
+| M0 | Schemas, action plumbing, scoring | — |
+| M1 | Quizzes with hand-written questions | F2 (minus AI) |
+| M2 | Rooms and lobby | F3, F9 |
+| M3 | Game loop, reveal, final — **then first deploy** | F4–F6 |
+| M4 | AI generation | F2 (AI path) |
+| M5 | Resilience and UI states | F7, F8 |
+| M6 | Should-haves | F10, F11, data inspector |
+
+---
+
+## 2. Decisions this plan settles
+
+1. **Job → record write path** (trd §8 "verify on Day 3"): export
+   `createActionTools` from `src/server/action-routes.ts` and call it from
+   `src/jobs.ts` with `userId = job.enqueuedBy`. Both integrations are
+   developer-billed, so `callIntegration` uses `env.APP_OWNER_JWT` and needs
+   no caller JWT. No follow-up action and no batched-sync fallback.
+2. **Jobs can be enqueued by any member** over the JobRoom socket
+   (`authorizeWrite` in `worker.ts`), which would bypass the daily cap. The
+   job handler trusts nothing in its payload except a `generationId`: it
+   loads that `generations` row, requires `status === 'pending'` and
+   `userId === job.enqueuedBy`, flips it to `running`, and only then spends
+   credits.
+3. **Timestamps** (`startedAt`, `deadline`, `joinedAt`, …) are epoch-ms
+   `number` columns, not ISO text: deadline/elapsed arithmetic and the client
+   countdown use them directly.
+4. **Question order in a game:** `startQuestion` picks the lowest-`order`
+   approved question of the quiz that has no round in this room yet. "Last
+   question" means none is left after this one.
+5. **Skip:** `skipQuestion` marks the current round `skipped` and immediately
+   starts the next round (`question → question`); if none is left, it
+   recomputes standings and sets `final`.
+6. **Paused room:** answers and reveal are refused while `paused`; the host
+   resumes first. `endRoom` works from any non-terminal state.
+7. **Standings** include every non-removed player (0-score rows too), so the
+   final screen and ranks are complete.
+
+---
+
+## 3. Milestones
+
+### M0 — Foundation (backend only, no UI)
+
+- `src/schemas/` — one file per collection from schema.md: `quizzes.ts`,
+  `questions.ts`, `answer-keys.ts`, `generations.ts`, `rooms.ts`,
+  `rounds.ts`, `room-players.ts`, `answers.ts`, `standings.ts`. Permissions
+  per [trd.md §4](./trd.md#4-data-model): `create/update/delete: false` for
+  every client role; `read: true` except `answer_keys` (`'own'`,
+  `ownerField: 'ownerId'`), `generations` and `answers` (`'own'`,
+  `ownerField: 'userId'`). `uniqueOn` per trd §4. Register in
+  `src/schemas.ts`; keep `usersSchema` read `'own'`.
+- `src/actions/` — split the registry: `index.ts` spreads `quiz.ts`,
+  `room.ts`, `game.ts`. Shared helpers in `src/actions/_shared.ts`:
+  `ok(data)` (adds `serverNow`), `fail(error, code)`, `parse(schema,
+  params)`, `getOr404(tools, collection, id)`, `requireQuizOwner`,
+  `requireHost`, `requireHostOrCoHost`.
+- `src/lib/scoring.ts` — `points()`, `rankStandings()` (score desc →
+  `correctMs` asc → `joinedAt` asc), `computeStandings(players, answers)`;
+  constants `GRACE_MS = 300`, `MAX_PLAYERS = 50`,
+  `TIME_LIMITS = [10, 20, 30, 60]`.
+- `src/lib/actions-client.ts` — typed `callAction<T>(name, params)` for
+  `POST /api/actions/<name>` with the user's bearer token.
+- `getServerTime` action.
+- Tests: `src/lib/scoring.test.ts` (formula bounds 500–1000, clamping, ties).
+- **Done when:** `npm run validate` passes, the dev server starts, and the
+  collections exist in the RecordRoom.
+
+### M1 — Quizzes with hand-written questions (F2 minus AI)
+
+- Actions (`quiz.ts`): `createQuiz` (manual mode: title only, status
+  `ready`), `addQuestion`, `updateQuestion` (edit / approve / reorder /
+  delete; writes `questions` + `answer_keys` together), `deleteQuiz`.
+- UI: `quizzes/index.tsx` (my quizzes), `quizzes/new.tsx` (replaces the
+  placeholder), `quizzes/[quizId].tsx` review/edit screen reading
+  `questions` + own `answer_keys` via `useQuery`. Nav entry "Quizzes".
+- Tests: another user's `updateQuestion` is refused.
+- **Done when:** a host builds a quiz by hand and approves its questions.
+
+### M2 — Rooms and lobby (F3, F9)
+
+- Actions (`room.ts`): `createRoom` (≥ 1 approved question; mints a code in
+  the `parseJoinCode` alphabet, retries on a `uniqueOn` clash), `joinRoom`
+  (idempotent; refuses removed / full / `final` / `cancelled`; sets
+  `firstRoundNumber`), `removePlayer`, `addCoHost`.
+- UI: `rooms/[roomId].tsx` with host and player views chosen by role; lobby
+  list from `room_players` + ``usePresenceRoom(`room:<id>`)`` for online
+  dots; `join/[code].tsx` resolves the code → `joinRoom` → redirect.
+- Tests: `collab.spec.ts` — two users see each other join; a removed
+  player's rejoin is refused.
+- **Done when:** features.md F3's "done when".
+
+### M3 — Game loop, reveal, final (F4–F6): the core claim
+
+- Actions (`game.ts`): `startQuestion`, `submitAnswer`, `revealQuestion`,
+  `skipQuestion`, `pauseRoom`, `resumeRoom`, `endRoom` — rules as in
+  trd §5–6 plus decisions 4–7. `submitAnswer` takes `userId` only from the
+  action context, scores against `answer_keys` with the server's receive
+  time, and relies on `uniqueOn [roundId, userId]` for the double-answer
+  race.
+- `src/lib/clock.ts` — 3-sample offset + `useCountdown(deadline)`.
+- UI: question screen (phone-first for players, projector-first for the
+  host), "answer locked in", reveal (correct option, distribution,
+  explanation, quote + link), standings, final podium + "questions you got
+  wrong" (own `answers` joined with public `rounds`), host controls (next /
+  skip / pause / resume / end).
+- Tests: `api.spec.ts` — late, duplicate, non-current round, host answer,
+  reveal before deadline, non-host `startQuestion` → all refused.
+  `collab.spec.ts` — host + 2 players reach identical standings.
+- **Then deploy**, after the source-control decision in
+  [trd.md §12](./trd.md#12-deployment-and-configuration).
+- **Done when:** features.md F4–F6 "done when", on the deployed URL.
+
+### M4 — AI generation (F2 AI path)
+
+- `src/lib/generation.ts` — Wikipedia HTML → text, notes cap, prompt
+  (source delimited as data), Zod question schema, option de-dup, quote
+  normalization + matching.
+- `createQuiz` source modes (`wikipedia` 1–3 topics / `notes`): checks the
+  daily cap by counting today's `generations` rows, creates the quiz as
+  `generating` + a `generations` row `pending`, then
+  ``enqueueJob(env.JOB_ROOMS, `app:${env.DEEPSPACE_APP_ID}`,
+  'generate-questions', { generationId })``.
+- `src/jobs.ts` — `generate-questions`: decision 2's guard → fetch sources
+  (`wikipedia/search-pages` → `wikipedia/get-page-content`) →
+  `anthropic/chat-completion` (`claude-sonnet-5-5`, temperature 0.3) →
+  validate → retry the invalid ones once → write unapproved `questions` +
+  `answer_keys` → quiz `ready`/`failed`; the generation row gets
+  `droppedCount`, tokens and `completedAt`. `ctx.progress()` at each step.
+- `regenerateQuestion` — same pipeline with count 1; replaces one question.
+- UI: builder form with topic / notes tabs, count, difficulty; review screen
+  shows `useJobs` progress and the dropped count.
+- Tests: `generation.test.ts` on a recorded Wikipedia page + recorded model
+  output (no live spend).
+- **Done when:** features.md F2's "done when".
+
+### M5 — Resilience and UI states (F7, F8)
+
+- Refresh/reconnect restore (everything renders from `rooms` + the current
+  round + own `answers`), offline markers, "host disconnected" banner, late
+  joiners, error screens (generation failed, room full, removed, finished).
+- Tests: refresh mid-question for player and host in `collab.spec.ts`.
+- **Done when:** features.md F7's "done when".
+
+### M6 — Should-haves (only after M3 is deployed and verified)
+
+Game history (F10), all-time leaderboard (F11, `npx deepspace add
+leaderboard`), owner-only `exportData` + `/admin/data`
+([trd.md §13](./trd.md#13-data-storage-and-observability)).
+
+---
+
+## 4. Files
+
+- **New:** `src/schemas/*.ts`, `src/actions/{_shared,quiz,room,game}.ts`,
+  `src/lib/{scoring,generation,clock,actions-client}.ts` (+ `.test.ts`),
+  pages under `src/pages/(app)/(protected)/{quizzes,rooms}/`.
+- **Changed:** `src/schemas.ts`, `src/actions/index.ts`, `src/jobs.ts`,
+  `src/server/action-routes.ts` (export `createActionTools`), `src/nav.ts`,
+  `join/[code].tsx`, `quizzes/new.tsx`, `tests/api.spec.ts`,
+  `tests/collab.spec.ts`.
+- **Reused:** `parseJoinCode` / `joinPath` (`src/lib/join-code.ts`), UI
+  primitives in `src/components/ui`, `lookupOwn` / `enqueueJob` from
+  `deepspace/worker`.
+
+## 5. Verification (every milestone)
+
+`npm run validate` → `npx deepspace test run all` → a manual two-browser run
+of the milestone's "done when" → commit and PR. From M3 on, also
+`npx deepspace deploy` and repeat the flow on the deployed URL. The
+[features.md §7](./features.md#7-verification) checklist is the final gate.

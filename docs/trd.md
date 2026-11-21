@@ -255,6 +255,8 @@ caps 10 questions per call and N generations per user per day.
 
 ## 10. Code layout
 
+Build order and milestones: [implementation-plan.md](./implementation-plan.md).
+
 ```
 src/
   schemas/            quizzes.ts, questions.ts, answer-keys.ts, rooms.ts,

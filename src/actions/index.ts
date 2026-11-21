@@ -1,9 +1,13 @@
 import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { gameActions } from './game'
+import { quizActions } from './quiz'
 
-export const actions: Record<string, ActionHandler<Env>> = {
+const registry = {
+  ...quizActions,
   ...gameActions,
 }
 
-export type ActionName = keyof typeof gameActions
+export const actions: Record<string, ActionHandler<Env>> = registry
+
+export type ActionName = keyof typeof registry

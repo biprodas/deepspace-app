@@ -105,13 +105,26 @@ on the server → state check → `tools.*` writes →
 
 ### M1 — Quizzes with hand-written questions (F2 minus AI)
 
-- Actions (`quiz.ts`): `createQuiz` (manual mode: title only, status
-  `ready`), `addQuestion`, `updateQuestion` (edit / approve / reorder /
-  delete; writes `questions` + `answer_keys` together), `deleteQuiz`.
+- Actions (`quiz.ts`), one verb each: `createQuiz` (manual: title only,
+  status `ready`), `renameQuiz`, `deleteQuiz` (drains `questions` +
+  `answer_keys`), `addQuestion` (hand-written, so it starts approved),
+  `updateQuestion` (any subset of fields + `approved`; writes `questions`
+  and `answer_keys` together), `moveQuestion` (swap `order` with a
+  neighbour), `deleteQuestion`. All but `createQuiz` are owner-only, and
+  every edit is refused while a room of the quiz is live (`quiz_in_play`),
+  so answers can't change mid-game.
+- Input rules in `src/lib/quiz-input.ts`, shared by the actions and the
+  form: 4 non-empty options, distinct ignoring case/spacing, correct index
+  0–3, time limit 10/20/30/60 s.
 - UI: `quizzes/index.tsx` (my quizzes), `quizzes/new.tsx` (replaces the
-  placeholder), `quizzes/[quizId].tsx` review/edit screen reading
-  `questions` + own `answer_keys` via `useQuery`. Nav entry "Quizzes".
-- Tests: another user's `updateQuestion` is refused.
+  placeholder), `quizzes/[quizId].tsx` editor reading `questions` + own
+  `answer_keys` via `useQuery`; `components/quiz/QuestionCard` and
+  `QuestionForm`; `lib/use-action.ts` (pending state + refusal toasts).
+  Nav entry "Quizzes".
+- Tests: `quiz-input.test.ts`; `tests/quizzes.spec.ts` — owner action path,
+  invalid input refused, editor UI, and (2 accounts) every quiz action
+  refused for another user. `tests/helpers/actions.ts` calls actions with a
+  real bearer token, like curl would.
 - **Done when:** a host builds a quiz by hand and approves its questions.
 
 ### M2 — Rooms and lobby (F3, F9)

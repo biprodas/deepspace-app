@@ -220,6 +220,19 @@
 
 /* ---- Hero accents --------------------------------------------------------- */
 
+/* Faint dot grid behind the hero, strongest around the headline and quiz
+ * preview and fading out toward the edges. */
+.hero-dots {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, var(--color-foreground) 13%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 55% 40%, #000 25%, transparent 75%);
+  mask-image: radial-gradient(ellipse 75% 65% at 55% 40%, #000 25%, transparent 75%);
+}
+
 /* The brush underline under "play": drawn by default, drawn in on load
  * with motion. */
 .underline-draw {

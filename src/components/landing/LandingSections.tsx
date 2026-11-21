@@ -14,15 +14,15 @@ import { AnswerChip, CREATE_QUIZ_PATH, Initials, Logo, PhoneFrame, SourceLabel }
 import { JoinCodeForm } from './JoinCodeForm'
 import { pillLink } from './LandingHeader'
 
-function Container({ children, className }: { children: ReactNode; className?: string }) {
+export function Container({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn('mx-auto max-w-6xl px-4 sm:px-6', className)}>{children}</div>
 }
 
-function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
+export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return <p className={cn('font-mono text-xs font-bold uppercase tracking-[0.18em] text-primary-text', className)}>{children}</p>
 }
 
-function H2({ children, className, id }: { children: ReactNode; className?: string; id?: string }) {
+export function H2({ children, className, id }: { children: ReactNode; className?: string; id?: string }) {
   return (
     <h2 id={id} className={cn('font-display text-[28px] font-extrabold leading-[1.1] tracking-tight sm:text-4xl', className)}>
       {children}
@@ -34,7 +34,7 @@ function H2({ children, className, id }: { children: ReactNode; className?: stri
 
 export function HowItWorks() {
   return (
-    <section id="how" aria-labelledby="how-title" className="scroll-mt-20 py-20 md:py-28">
+    <section id="how" aria-labelledby="how-title" className="scroll-mt-20 bg-card py-20 md:py-28">
       <Container>
         <div className="max-w-2xl">
           <Eyebrow>How a game runs</Eyebrow>
@@ -95,13 +95,13 @@ export function HowItWorks() {
 
 function Step({ n, title, text, children }: { n: number; title: string; text: string; children: ReactNode }) {
   return (
-    <li className="flex flex-col rounded-2xl border border-border bg-card p-6">
+    <li className="flex flex-col rounded-2xl border border-border bg-background p-6">
       <div className="flex items-center gap-3">
         <span className="flex size-8 items-center justify-center rounded-full bg-foreground font-mono text-sm font-bold text-background">{n}</span>
         <h3 className="font-display text-xl font-bold">{title}</h3>
       </div>
       <p className="mt-3 text-muted-foreground">{text}</p>
-      <div className="mt-6 rounded-xl border border-border bg-background p-4">{children}</div>
+      <div className="mt-6 rounded-xl border border-border bg-card p-4">{children}</div>
     </li>
   )
 }
@@ -115,7 +115,7 @@ export function Receipts() {
     { icon: ShieldCheck, title: 'Fair', text: 'Answers stay on the server until the reveal. One answer per player, and late answers don’t count.' },
   ]
   return (
-    <section id="educators" aria-labelledby="educators-title" className="scroll-mt-20 border-y border-border bg-card py-20 md:py-28">
+    <section id="educators" aria-labelledby="educators-title" className="scroll-mt-20 bg-card py-20 md:py-28">
       <Container className="grid grid-cols-1 items-center gap-12 md:grid-cols-2 md:gap-16">
         <div>
           <Eyebrow>For teachers, tutors and organisers</Eyebrow>
@@ -297,12 +297,12 @@ export function Audiences() {
     { icon: BookOpenCheck, who: 'Teams', text: 'Onboarding facts that stick, with the source doc one tap away.', accent: 'bg-answer-d' },
   ]
   return (
-    <section aria-labelledby="audiences-title" className="pb-20 md:pb-28">
+    <section aria-labelledby="audiences-title" className="bg-[#fff6d9] py-20 md:py-28 dark:bg-[#1e1b38]">
       <Container>
         <H2 id="audiences-title">Made for any group that learns together</H2>
         <ul className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {items.map(({ icon: Icon, who, text, accent }) => (
-            <li key={who} className="rounded-2xl border border-border bg-card p-5">
+            <li key={who} className="rounded-2xl border border-[#f0e2b0] bg-card p-5 shadow-[0_1px_2px_rgba(20,20,43,0.04)] dark:border-border">
               <span className={cn('flex size-10 items-center justify-center rounded-xl text-ink', accent)}>
                 <Icon aria-hidden="true" className="size-5" />
               </span>
@@ -340,7 +340,7 @@ const FAQS = [
 
 export function Faq() {
   return (
-    <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 border-t border-border py-20 md:py-28">
+    <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 py-20 md:py-28">
       <Container className="grid grid-cols-1 gap-10 md:grid-cols-[1fr_1.6fr]">
         <H2 id="faq-title">Questions, answered</H2>
         <div className="divide-y divide-border border-y border-border">
@@ -400,6 +400,7 @@ export function LandingFooter() {
         </div>
         <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
           <a href="#how" className="hover:text-foreground">How it works</a>
+          <a href="#features" className="hover:text-foreground">Features</a>
           <a href="#educators" className="hover:text-foreground">For educators</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <Link to="/home" className="hover:text-foreground">Sign in</Link>

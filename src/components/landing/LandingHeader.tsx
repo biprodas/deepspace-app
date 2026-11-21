@@ -7,6 +7,7 @@ import { focusHeroJoin } from './JoinCodeForm'
 
 const NAV = [
   { href: '#how', label: 'How it works' },
+  { href: '#features', label: 'Features' },
   { href: '#educators', label: 'For educators' },
   { href: '#faq', label: 'FAQ' },
 ]

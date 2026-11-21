@@ -403,7 +403,7 @@ export function LandingFooter() {
           <a href="#features" className="hover:text-foreground">Features</a>
           <a href="#educators" className="hover:text-foreground">For educators</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
-          <Link to="/home" className="hover:text-foreground">Sign in</Link>
+          <Link to="/sign-in" className="hover:text-foreground">Sign in</Link>
           <span>Built on DeepSpace</span>
         </nav>
       </Container>

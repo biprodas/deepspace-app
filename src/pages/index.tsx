@@ -18,7 +18,8 @@
  */
 
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { consumePendingReturn, signInPath } from '@/lib/auth-redirect'
 import { ArrowRight, Check, Gamepad2 } from 'lucide-react'
 import { Seo } from '../components/Seo'
 import { seo } from '../seo'
@@ -41,6 +42,16 @@ import { MobileJoinBar } from '../components/landing/MobileJoinBar'
 import { QuizPreview } from '../components/landing/QuizPreview'
 
 export default function Landing() {
+  const navigate = useNavigate()
+
+  // Google/GitHub sign-in always comes back to the site root. If a sign-in
+  // just returned here, hand over to /sign-in, which sends the now-signed-in
+  // visitor on to the page they started from (e.g. /join/K7QX9P).
+  useEffect(() => {
+    const pending = consumePendingReturn()
+    if (pending) navigate(signInPath(pending), { replace: true })
+  }, [navigate])
+
   return (
     <>
       <Seo {...seo} path="/" />

@@ -49,7 +49,7 @@ export function LandingHeader() {
             <span className="md:hidden">Join</span>
             <span className="hidden md:inline">Join a game</span>
           </a>
-          <Link to="/home" className={cn(pillLink, 'h-10 px-2 text-sm text-muted-foreground hover:text-foreground sm:px-3')}>
+          <Link to="/sign-in" className={cn(pillLink, 'h-10 px-2 text-sm text-muted-foreground hover:text-foreground sm:px-3')}>
             Sign in
           </Link>
           <Link

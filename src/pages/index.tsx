@@ -90,7 +90,7 @@ function Hero() {
         <div className="absolute right-[6%] top-[22%] size-[420px] rounded-full bg-answer-b/12 blur-3xl dark:bg-answer-b/10" />
         <div className="absolute left-[-10%] top-[30%] size-[320px] rounded-full bg-answer-c/10 blur-3xl dark:bg-answer-c/5" />
       </div>
-      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pb-16 pt-8 sm:px-6 md:grid-cols-[1.05fr_0.95fr] md:gap-10 md:pb-24 md:pt-20">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 md:pb-24 md:pt-20">
         <div className="flex flex-col items-start">
           <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-sm font-bold shadow-[0_1px_2px_rgba(20,20,43,0.04)]">
             <span aria-hidden="true" className="live-dot relative size-2.5 rounded-full bg-correct" />

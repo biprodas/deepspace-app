@@ -3,8 +3,8 @@
  * answer letters, a tick, a score pop and a question number, all as thin
  * outlines at a few percent opacity. They sit only in the hero's empty
  * space (corners, the gutter, the strip under the content), never behind
- * the headline, copy or code card, and are hidden on phones where that
- * space doesn't exist. Positions are relative to the content width, so
+ * the headline, copy or code card. Shown only with the two-column hero
+ * (lg and up), since their spots are placed around that layout. Positions are relative to the content width, so
  * they track the layout rather than the window edges.
  */
 
@@ -33,7 +33,7 @@ function OutlineText({ children, className }: { children: ReactNode; className?:
 
 export function HeroWatermarks() {
   return (
-    <div aria-hidden="true" data-hero-watermarks="" className="pointer-events-none absolute inset-0 hidden select-none text-foreground/[0.07] md:block dark:text-foreground/[0.08]">
+    <div aria-hidden="true" data-hero-watermarks="" className="pointer-events-none absolute inset-0 hidden select-none text-foreground/[0.07] lg:block dark:text-foreground/[0.08]">
       <div className="relative mx-auto h-full max-w-6xl">
         {/* Big question mark, half in the left gutter. */}
         <Mark className="-left-16 top-6">

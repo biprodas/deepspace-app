@@ -12,6 +12,7 @@ const GAME_COLLECTIONS = [
   'room_players',
   'answers',
   'standings',
+  'leaderboard',
 ]
 const byName = new Map(schemas.map((s) => [s.name, s]))
 

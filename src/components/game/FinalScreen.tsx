@@ -10,6 +10,7 @@ import { Trophy } from 'lucide-react'
 import { buttonVariants, cn } from '@/components/ui'
 import { AnswerChip, Initials } from '@/components/landing/bits'
 import type { RoomState } from '@/lib/use-room'
+import { hardestQuestions, questionResults } from '@/lib/game-report'
 import { SourceQuote } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
@@ -76,6 +77,8 @@ export function FinalScreen({ state }: { state: RoomState }) {
         <StandingsList standings={standings} names={names} userId={userId} />
       </section>
 
+      {role !== 'player' && <QuestionBreakdown state={state} />}
+
       {role === 'player' && (
         <section data-testid="missed-questions">
           <h2 className="mb-3 font-display text-lg font-bold">
@@ -118,5 +121,49 @@ export function FinalScreen({ state }: { state: RoomState }) {
         </Link>
       </div>
     </div>
+  )
+}
+
+/** Host view (docs/features.md F10): how each question went, hardest first. */
+function QuestionBreakdown({ state }: { state: RoomState }) {
+  const results = questionResults(state.rounds, state.questionsById)
+  const hardest = hardestQuestions(results)
+  if (results.length === 0) return null
+  const pct = (accuracy: number | null) => (accuracy === null ? '—' : `${Math.round(accuracy * 100)}%`)
+
+  return (
+    <section data-testid="question-breakdown" className="space-y-4">
+      <h2 className="font-display text-lg font-bold">How each question went</h2>
+      {hardest.length > 0 && (
+        <div className="rounded-xl border border-warning/50 bg-warning/10 p-4 text-sm">
+          <p className="mb-2 font-semibold">Hardest questions</p>
+          <ol className="space-y-1">
+            {hardest.map((r) => (
+              <li key={r.roundId} className="flex gap-2">
+                <span className="font-mono font-bold">{pct(r.accuracy)}</span>
+                <span className="min-w-0 flex-1">{r.prompt}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      <ul className="space-y-2">
+        {results.map((r) => (
+          <li key={r.roundId} data-testid="question-result" className="rounded-lg border border-border bg-card p-3 text-sm">
+            <div className="flex items-start gap-3">
+              <span className="font-mono text-xs font-bold text-muted-foreground">Q{r.roundNumber}</span>
+              <span className="min-w-0 flex-1 font-medium">{r.prompt}</span>
+              <span className="font-mono font-bold tabular-nums">{pct(r.accuracy)}</span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden="true">
+              <div className="h-full rounded-full bg-correct" style={{ width: `${(r.accuracy ?? 0) * 100}%` }} />
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {r.correct} of {r.answered} answered correctly · answer: {r.correctOption}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

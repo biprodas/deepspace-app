@@ -15,10 +15,12 @@
 import type { ActionTools } from 'deepspace/worker'
 import { z } from 'zod'
 import { GRACE_MS, OPTION_COUNT } from '../lib/game-rules'
+import { addGameToEntry } from '../lib/leaderboard'
 import { computeStandings, elapsedMs, points } from '../lib/scoring'
 import type {
   Answer,
   AnswerKey,
+  LeaderboardEntry,
   Question,
   Room,
   RoomPlayer,
@@ -154,6 +156,48 @@ async function finish(tools: ActionTools, roomId: string) {
       completedAt: Date.now(),
     }),
   )
+  try {
+    await addToLeaderboard(tools, roomId)
+  } catch (err) {
+    // The game is over either way; a board update must not undo that.
+    console.error(`[leaderboard] room ${roomId}: ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+/**
+ * Folds a finished game's final standings into each player's all-time
+ * totals (docs/features.md F11). Only `final` games count, never ones ended
+ * early, and `addGameToEntry` ignores a room it has already counted.
+ */
+async function addToLeaderboard(tools: ActionTools, roomId: string) {
+  const [standings, players] = await Promise.all([
+    queryRecords<Standing>(tools, 'standings', { roomId }),
+    queryRecords<RoomPlayer>(tools, 'room_players', { roomId }),
+  ])
+  const names = new Map(players.map((p) => [p.data.userId, p.data.displayName]))
+
+  for (const { data: standing } of standings) {
+    const game = {
+      roomId,
+      standing,
+      displayName: names.get(standing.userId) ?? 'Player',
+      playerCount: standings.length,
+    }
+    const [row] = await queryRecords<LeaderboardEntry>(tools, 'leaderboard', { userId: standing.userId }, { limit: 1 })
+    const next = addGameToEntry(row?.data, game)
+    if (row) {
+      if (next !== row.data) unwrap(await tools.update('leaderboard', row.recordId, { ...next }))
+      continue
+    }
+    const created = await tools.create('leaderboard', { ...next })
+    if (!isDuplicate(created)) {
+      unwrap(created)
+      continue
+    }
+    // Another game finished for this player at the same moment: add onto its row.
+    const [raced] = await queryRecords<LeaderboardEntry>(tools, 'leaderboard', { userId: standing.userId }, { limit: 1 })
+    if (raced) unwrap(await tools.update('leaderboard', raced.recordId, { ...addGameToEntry(raced.data, game) }))
+  }
 }
 
 // ─── Actions ─────────────────────────────────────────────

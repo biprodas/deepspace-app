@@ -96,3 +96,24 @@ export const standingsSchema: CollectionSchema = {
   uniqueOn: ['roomId', 'userId'],
   permissions: serverWritten(true),
 }
+
+/**
+ * All-time leaderboard (docs/features.md F11). Built from server-computed
+ * standings when a game finishes; nobody can submit a score. (DeepSpace's
+ * ready-made `leaderboard` feature lets users submit scores, which would
+ * break the "client never owns the score" rule, so it isn't used.)
+ */
+export const leaderboardSchema: CollectionSchema = {
+  name: 'leaderboard',
+  columns: [
+    text('userId', { required: true, immutable: true }),
+    text('displayName', { required: true }),
+    num('totalScore', { default: 0 }),
+    num('games', { default: 0 }),
+    num('wins', { default: 0 }),
+    num('correctAnswers', { default: 0 }),
+    json('roomIds', { default: [] }),
+  ],
+  uniqueOn: ['userId'],
+  permissions: serverWritten(true),
+}

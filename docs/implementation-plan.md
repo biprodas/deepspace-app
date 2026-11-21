@@ -260,9 +260,31 @@ on the server → state check → `tools.*` writes →
 
 ### M6 — Should-haves (only after M3 is deployed and verified)
 
-Game history (F10), all-time leaderboard (F11, `npx deepspace add
-leaderboard`), owner-only `exportData` + `/admin/data`
-([trd.md §13](./trd.md#13-data-storage-and-observability)).
+Built before the first deploy, at the user's request.
+
+- **All-time leaderboard (F11) — not `npx deepspace add leaderboard`.**
+  That feature lets users submit their own scores (admins edit them), which
+  breaks "the client never owns the score". Instead a server-only
+  `leaderboard` collection (`uniqueOn [userId]`) is updated in `finish()`
+  from the final `standings`: total score, games, wins (rank 1 with at
+  least one opponent), correct answers. `addGameToEntry` records each
+  counted `roomId`, so a repeated finish can't double-count; games ended
+  early never count; a board failure is logged and never blocks the end of
+  a game. Page: `/leaderboard`.
+- **History (F10):** `/history` lists finished games played (your rank of
+  N and points, or "Removed") and hosted (player count). Each row opens the
+  room's final screen, where the host now sees "How each question went"
+  (accuracy per question and the hardest questions, from the public reveal
+  fields of `rounds` via `lib/game-report.ts`).
+- **Data inspector (trd §13):** `exportData` refuses anyone but
+  `env.OWNER_USER_ID` and returns every game collection (pasted notes left
+  out, only their length kept); `/admin/data` (nav: admins) shows counts,
+  recent rooms and a JSON download.
+- Tests: `leaderboard.test.ts`, `game-report.test.ts`;
+  `tests/history.spec.ts` — a finished game raises the player's board
+  total and an ended one doesn't, history shows rank and the host's
+  breakdown, and `exportData` / `/admin/data` refuse non-owners. The owner
+  path can't be automated (test accounts are never the owner).
 
 ---
 

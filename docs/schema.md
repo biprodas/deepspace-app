@@ -208,6 +208,18 @@ model Standing {
 
   @@unique([roomId, userId])
 }
+
+/// All-time totals over finished games, written by the server at game end.
+model LeaderboardEntry {
+  recordId       String @id
+  userId         String @unique
+  displayName    String
+  totalScore     Int
+  games          Int
+  wins           Int
+  correctAnswers Int
+  roomIds        Json   // string[]: rooms already counted (idempotent)
+}
 ```
 
 ## Relationships

@@ -135,3 +135,15 @@ export interface Standing {
   correctMs: number
   rank: number
 }
+
+/** All-time totals per player over finished games, maintained by the server. */
+export interface LeaderboardEntry {
+  userId: string
+  displayName: string
+  totalScore: number
+  games: number
+  wins: number
+  correctAnswers: number
+  /** Rooms already counted, so a repeated finish never double-counts. */
+  roomIds: string[]
+}

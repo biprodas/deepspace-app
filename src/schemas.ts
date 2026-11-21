@@ -18,6 +18,7 @@ import {
 } from './schemas/quiz-schemas'
 import {
   answersSchema,
+  leaderboardSchema,
   roomPlayersSchema,
   roomsSchema,
   roundsSchema,
@@ -36,4 +37,5 @@ export const schemas: CollectionSchema[] = [
   roomPlayersSchema,
   answersSchema,
   standingsSchema,
+  leaderboardSchema,
 ]

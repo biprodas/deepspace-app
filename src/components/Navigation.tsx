@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
-import { APP_NAME } from '../constants'
+import { Logo } from './landing/bits'
 import type { Role } from '../constants'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
@@ -71,12 +71,21 @@ export default function Navigation() {
   return (
     <>
       <nav data-testid="app-navigation" className="border-b border-border bg-background">
-        <div className="mx-auto flex h-12 max-w-7xl items-center gap-4 px-4">
-          <Link to="/home" className="text-sm font-semibold text-foreground">
-            {APP_NAME}
-          </Link>
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4">
+          {/* Brand and links share a text baseline (as on the landing header):
+              the display and body fonts sit at different heights in their
+              line boxes, so centring the boxes leaves the words out of line. */}
+          <div className="flex items-baseline gap-4">
+            <Link
+              to="/home"
+              aria-label="StudyArena home"
+              className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40"
+            >
+              <Logo />
+            </Link>
 
-          <div className="hidden items-center md:flex">{visibleNav.map(navLink)}</div>
+            <div className="hidden items-baseline md:flex">{visibleNav.map(navLink)}</div>
+          </div>
 
           <div className="flex-1" />
 

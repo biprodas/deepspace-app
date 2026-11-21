@@ -52,6 +52,26 @@ test('host opens a room and gets a readable code', async ({ users }) => {
   })
 })
 
+test('hosting the same quiz again returns the open game instead of a second room', async ({ users }) => {
+  const [host] = await users(1)
+  const call = await actionsAs(host.page)
+  const first = await openRoom(call)
+
+  const again = await call<{ roomId: string; code: string; reused: boolean }>('createRoom', { quizId: first.quizId })
+  expect(again).toMatchObject({ success: true, data: { roomId: first.roomId, code: first.code, reused: true } })
+
+  await host.page.goto(`/quizzes/${first.quizId}`)
+  await expect(host.page.getByRole('button', { name: `Back to your game · ${first.code}` })).toBeVisible({
+    timeout: 15_000,
+  })
+
+  // Once it ends, hosting again opens a fresh room.
+  await call('endRoom', { roomId: first.roomId })
+  const fresh = await call<{ roomId: string; reused: boolean }>('createRoom', { quizId: first.quizId })
+  expect(fresh).toMatchObject({ success: true, data: { reused: false } })
+  expect(fresh.data!.roomId).not.toBe(first.roomId)
+})
+
 test('ending a game closes the code and unfreezes the quiz', async ({ users }) => {
   const [host] = await users(1)
   const call = await actionsAs(host.page)

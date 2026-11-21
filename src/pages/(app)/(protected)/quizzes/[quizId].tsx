@@ -41,7 +41,7 @@ export default function QuizEditorPage() {
     orderDir: 'asc',
   })
   const answerKeys = useQuery<AnswerKey>('answer_keys', { where: { quizId } })
-  const rooms = useQuery<Room>('rooms', { where: { quizId } })
+  const rooms = useQuery<Room>('rooms', { where: { quizId }, orderBy: 'createdAt', orderDir: 'asc' })
   const openRooms = rooms.records.filter((r) => !isClosedStatus(r.data.status))
   // Owner-only rows: the quiz's AI runs (the full draft and any regenerations).
   const generations = useQuery<Generation>('generations', { where: { quizId } })
@@ -130,14 +130,15 @@ export default function QuizEditorPage() {
         {isOwner && (
           <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
             <Button
-              disabled={approvedCount === 0}
+              disabled={approvedCount === 0 && openRooms.length === 0}
               loading={pending === 'createRoom'}
               onClick={async () => {
+                // Returns the open game if there is one, so a second click never splits players.
                 const result = await run<{ roomId: string }>('createRoom', { quizId })
                 if (result.success) navigate(`/rooms/${result.data.roomId}`)
               }}
             >
-              <Play /> Host a game
+              <Play /> {openRooms.length > 0 ? `Back to your game · ${openRooms[0].data.code}` : 'Host a game'}
             </Button>
             <Button
               variant="ghost"

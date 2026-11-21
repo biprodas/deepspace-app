@@ -130,7 +130,8 @@ on the server → state check → `tools.*` writes →
 ### M2 — Rooms and lobby (F3, F9)
 
 - Actions (`room.ts`): `createRoom` (owner, quiz `ready`, ≥ 1 approved
-  question; `mintJoinCode` uses the `parseJoinCode` alphabet minus
+  question; returns the host's oldest open game of the quiz instead of
+  making a second room, so a repeated "Host a game" never splits players; `mintJoinCode` uses the `parseJoinCode` alphabet minus
   look-alikes 0/O/1/I/L, retries on a `uniqueOn` clash), `joinRoom`
   (idempotent; host/co-hosts get `role: 'host'`; refuses removed / full /
   `final` / `cancelled`; sets `firstRoundNumber`; display name from

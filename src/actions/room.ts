@@ -54,10 +54,20 @@ async function nextRoundNumber(tools: ActionTools, roomId: string): Promise<numb
 
 // ─── Actions ─────────────────────────────────────────────
 
-/** Opens a lobby for an owned quiz with at least one approved question. */
+/**
+ * Opens a lobby for an owned quiz with at least one approved question. If
+ * the host already has an open game of this quiz, that one is returned
+ * instead: pressing "Host a game" again must not strand players who joined
+ * the first code in a room the host has left.
+ */
 const createRoom = defineAction(z.object({ quizId: recordId }), async ({ userId, tools }, p) => {
   const quiz = await getRecord<Quiz>(tools, 'quizzes', p.quizId, 'Quiz')
   requireQuizOwner(quiz, userId)
+  // Oldest first: that's the code players most likely already have.
+  const [open] = (
+    await queryRecords<Room>(tools, 'rooms', { quizId: p.quizId, hostId: userId }, { orderBy: 'createdAt', orderDir: 'asc' })
+  ).filter((r) => !isClosed(r.data))
+  if (open) return { roomId: open.recordId, code: open.data.code, reused: true }
   if (quiz.data.status !== 'ready') {
     throw new ActionError('This quiz isn’t ready yet', 'quiz_not_ready')
   }
@@ -79,7 +89,7 @@ const createRoom = defineAction(z.object({ quizId: recordId }), async ({ userId,
     const result = await tools.create('rooms', { ...room })
     if (isDuplicate(result)) continue
     const { recordId: roomId } = unwrap(result)
-    return { roomId, code: room.code }
+    return { roomId, code: room.code, reused: false }
   }
   throw new ActionError('Couldn’t pick a free room code, try again', 'code_exhausted')
 })

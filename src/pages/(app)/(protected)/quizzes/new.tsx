@@ -5,6 +5,7 @@
  * server enforces (`newQuiz`) validate the form first.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, BookOpen, NotebookPen, PenLine, Plus, Sparkles, X } from 'lucide-react'
@@ -25,6 +26,7 @@ type Mode = NewQuiz['sourceType']
 export default function NewQuizPage() {
   const navigate = useNavigate()
   const { run, pending } = useAction()
+  usePageTitle('Create a quiz')
   const [mode, setMode] = useState<Mode>('wikipedia')
   const [title, setTitle] = useState('')
   const [topics, setTopics] = useState<string[]>([''])

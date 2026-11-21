@@ -8,7 +8,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.ico" />
+    <!-- The logo mark: SVG for browsers that take it, .ico for the rest. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f0f1e" media="(prefers-color-scheme: dark)" />
+    <!--
+      Description and preview tags are not set here: the landing page gets
+      src/seo.ts's from <Seo> (and the prerender), and the signed-in app
+      shell gets `seo.appShell`'s from prerender.ts.
+    -->
     <title>StudyArena</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -3,11 +3,13 @@
  * because (protected)/_layout.tsx already wraps the subtree in <AuthGate>.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { signOut, useUser } from 'deepspace'
 import { Button } from '@/components/ui'
 
 export default function SettingsPage() {
   const { user } = useUser()
+  usePageTitle('Settings')
 
   return (
     // No background on page wrappers — pages render into whatever the app's

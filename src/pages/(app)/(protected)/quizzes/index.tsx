@@ -3,6 +3,7 @@
  * edits first.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
 import { ChevronRight, ListChecks, Plus } from 'lucide-react'
@@ -18,6 +19,7 @@ const STATUS: Record<QuizStatus, { label: string; variant: 'success' | 'warning'
 export default function QuizzesPage() {
   const { user } = useUser()
   const navigate = useNavigate()
+  usePageTitle('My quizzes')
   const { records, status } = useQuery<Quiz>('quizzes', {
     where: { ownerId: user?.id ?? '' },
     orderBy: 'updatedAt',

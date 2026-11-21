@@ -8,6 +8,7 @@
  * refused.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
@@ -60,6 +61,7 @@ export default function QuizEditorPage() {
   )
 
   const quiz = quizzes.records[0]
+  usePageTitle(quiz?.data.title ?? 'Quiz')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   if (quizzes.status === 'loading') {

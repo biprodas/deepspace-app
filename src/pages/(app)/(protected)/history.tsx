@@ -5,6 +5,7 @@
  * data; each row opens the room's final screen.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
@@ -17,6 +18,7 @@ const LIMIT = 30
 export default function HistoryPage() {
   const { user } = useUser()
   const userId = user?.id ?? ''
+  usePageTitle('History')
   const played = useQuery<RoomPlayer>('room_players', {
     where: { userId },
     orderBy: 'joinedAt',

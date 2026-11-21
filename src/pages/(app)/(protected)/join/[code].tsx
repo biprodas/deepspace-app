@@ -5,6 +5,7 @@
  * on the link just lands back in the room.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Ban, DoorClosed, SearchX, Users } from 'lucide-react'
@@ -40,6 +41,7 @@ export default function JoinPage() {
   const { code: raw = '' } = useParams()
   const code = parseJoinCode(raw)
   const navigate = useNavigate()
+  usePageTitle(code ? `Join ${code}` : 'Join a game')
   const [refusal, setRefusal] = useState<{ code?: string; error: string } | null>(null)
   // React's dev double-mount would otherwise send two joins (harmless, but noisy).
   const sent = useRef(false)

@@ -40,8 +40,8 @@ async function playOneQuestion(host: CallAction, player: CallAction, finish: 'fi
 /** The player's leaderboard total (0 when not on the board yet). */
 async function boardScore(page: Page, name: string): Promise<number> {
   await page.goto('/leaderboard')
-  await page.getByRole('heading', { name: 'Leaderboard' }).waitFor({ timeout: 15_000 })
-  await page.waitForTimeout(1_000) // let the live query settle
+  // Wait until the live query has answered: rows, or the empty board.
+  await page.getByTestId('leaderboard').or(page.getByText('No finished games yet')).waitFor({ timeout: 15_000 })
   const row = page.getByTestId('leaderboard-row').filter({ hasText: name })
   if ((await row.count()) === 0) return 0
   return Number((await row.getByTestId('leaderboard-score').innerText()).replace(/\D/g, ''))
@@ -55,8 +55,11 @@ test('a finished game counts on the leaderboard, a game ended early does not', a
   const before = await boardScore(playerUser.page, name)
 
   await playOneQuestion(host, player, 'final')
-  const afterFinal = await boardScore(playerUser.page, name)
-  expect(afterFinal).toBeGreaterThanOrEqual(before + 500) // a correct answer is worth 500–1000
+  // The board updates a moment after the game ends; poll until it has.
+  let afterFinal = 0
+  await expect
+    .poll(async () => (afterFinal = await boardScore(playerUser.page, name)), { timeout: 20_000 })
+    .toBeGreaterThanOrEqual(before + 500) // a correct answer is worth 500–1000
 
   await playOneQuestion(host, player, 'ended early')
   expect(await boardScore(playerUser.page, name)).toBe(afterFinal)

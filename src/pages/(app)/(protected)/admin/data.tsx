@@ -4,6 +4,7 @@
  * page itself grants nothing.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { useCallback, useEffect, useState } from 'react'
 import { Database, Download, RefreshCw, ShieldAlert } from 'lucide-react'
 import { Badge, Button, EmptyState } from '@/components/ui'
@@ -20,6 +21,7 @@ export default function AdminDataPage() {
   const [data, setData] = useState<Exported | null>(null)
   const [error, setError] = useState<{ code?: string; message: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  usePageTitle('Data')
 
   const load = useCallback(async () => {
     setLoading(true)

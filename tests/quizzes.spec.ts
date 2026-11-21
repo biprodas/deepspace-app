@@ -73,6 +73,7 @@ test('the editor shows a new question live and marks its answer', async ({ users
 
   await owner.page.goto(`/quizzes/${quizId}`)
   await expect(owner.page.getByRole('heading', { name: 'Editor check' })).toBeVisible({ timeout: 15_000 })
+  await expect(owner.page).toHaveTitle('Editor check · StudyArena')
 
   await owner.page.getByLabel('Question', { exact: true }).fill(QUESTION.prompt)
   for (const [i, option] of QUESTION.options.entries()) {

@@ -1,5 +1,5 @@
-/** App name — replaced by the CLI during scaffolding */
-export const APP_NAME = 'deepspace-app'
+/** Display name: browser tabs, page titles. (The platform app name in wrangler.toml stays as is.) */
+export const APP_NAME = 'StudyArena'
 
 /** Immutable app identity — data scope keys to this, so renames never
  *  strand your records.

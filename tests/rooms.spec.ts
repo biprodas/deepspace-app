@@ -72,6 +72,30 @@ test('hosting the same quiz again returns the open game instead of a second room
   expect(fresh.data!.roomId).not.toBe(first.roomId)
 })
 
+test('a live room hides the app navigation behind a slim bar, and gives it back after', async ({ users }) => {
+  const [host] = await users(1)
+  const call = await actionsAs(host.page)
+  const { roomId, code, quizId } = await openRoom(call)
+  const page = host.page
+
+  await page.goto(`/rooms/${roomId}`)
+  await expect(page.getByTestId('focus-bar')).toContainText(code, { timeout: 15_000 })
+  await expect(page).toHaveTitle(`Lobby ${code} · StudyArena`)
+  await expect(page.getByTestId('app-navigation')).toHaveCount(0)
+
+  // Leaving the room restores the normal chrome.
+  await page.getByTestId('focus-bar').getByRole('link', { name: /Exit to quiz/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/quizzes/${quizId}$`))
+  await expect(page.getByTestId('app-navigation')).toBeVisible()
+
+  // A finished game's results keep the navigation.
+  await call('endRoom', { roomId })
+  await page.goto(`/rooms/${roomId}`)
+  await expect(page.getByTestId('final-screen')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByTestId('app-navigation')).toBeVisible()
+  await expect(page.getByTestId('focus-bar')).toHaveCount(0)
+})
+
 test('ending a game closes the code and unfreezes the quiz', async ({ users }) => {
   const [host] = await users(1)
   const call = await actionsAs(host.page)

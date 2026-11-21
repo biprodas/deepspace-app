@@ -20,27 +20,42 @@ import { Outlet } from 'react-router-dom'
 import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
 import Navigation from '../../components/Navigation'
+import { FocusModeProvider, useIsFocusMode } from '@/lib/focus-mode'
+import { DocumentTitle, PageTitleProvider } from '@/lib/page-title'
 import { useToast } from '@/components/ui'
-import { APP_NAME, SCOPE_ID } from '../../constants'
+import { SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
 
 export default function AppLayout() {
   return (
     <DeepSpaceAuthProvider>
-      {/* The prerendered landing owns the document <title> and React drops it
-          when <Seo> unmounts, so every route without <Seo> sets its own. */}
-      <title>{APP_NAME}</title>
-      <AuthBoot>
-        <div className="flex h-screen flex-col bg-background overflow-hidden">
-          <Navigation />
-          <main className="flex-1 overflow-y-auto min-h-0">
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
-              <Outlet />
-            </Suspense>
-          </main>
-        </div>
-      </AuthBoot>
+      <PageTitleProvider>
+        {/* The prerendered landing owns the document <title> and React drops it
+            when <Seo> unmounts, so every route without <Seo> sets its own:
+            here, one <title> named by the current page (src/lib/page-title.tsx). */}
+        <DocumentTitle />
+        <AuthBoot>
+          <FocusModeProvider>
+            <AppShell />
+          </FocusModeProvider>
+        </AuthBoot>
+      </PageTitleProvider>
     </DeepSpaceAuthProvider>
+  )
+}
+
+/** Navigation + page. Live game screens switch on focus mode to drop the nav. */
+function AppShell() {
+  const focused = useIsFocusMode()
+  return (
+    <div className="flex h-screen flex-col bg-background overflow-hidden">
+      {!focused && <Navigation />}
+      <main className="flex-1 overflow-y-auto min-h-0">
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
+          <Outlet />
+        </Suspense>
+      </main>
+    </div>
   )
 }
 

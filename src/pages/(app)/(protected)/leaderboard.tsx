@@ -3,6 +3,7 @@
  * finished games, written only by the server when a game ends.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { useQuery, useUser } from 'deepspace'
 import { Trophy } from 'lucide-react'
 import { EmptyState, cn } from '@/components/ui'
@@ -14,6 +15,7 @@ const LIMIT = 50
 
 export default function LeaderboardPage() {
   const { user } = useUser()
+  usePageTitle('Leaderboard')
   const { records, status } = useQuery<LeaderboardEntry>('leaderboard', {
     orderBy: 'totalScore',
     orderDir: 'desc',

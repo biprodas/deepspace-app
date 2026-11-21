@@ -5,6 +5,7 @@
  * field and a sign-in prompt; all game pages themselves require sign-in.
  */
 
+import { usePageTitle } from '@/lib/page-title'
 import { Link } from 'react-router-dom'
 import { useAuthProfileReady, useQuery } from 'deepspace'
 import { ChevronRight, ListChecks, Plus, Radio } from 'lucide-react'
@@ -25,6 +26,7 @@ const STATUS_LABEL: Record<RoomStatus, string> = {
 export default function HomePage() {
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
   const userId = isSignedIn ? (user?.id ?? '') : ''
+  usePageTitle('Home')
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-4 pb-24 pt-10 sm:px-6">

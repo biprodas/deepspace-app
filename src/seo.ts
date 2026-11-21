@@ -33,4 +33,15 @@ export const seo = {
   /** 1200×630 preview image, root-relative to public/ (e.g. '/og.png'). */
   // ogImage: '/og.png',
   noindex: false,
+  /**
+   * The signed-in app shell (_spa.html), served for /join/CODE and every
+   * other client route. A shared invite link previews with this, so it
+   * speaks to someone who was just sent a code. prerender.ts stamps it into
+   * the shell only; the landing page above keeps its own tags.
+   */
+  appShell: {
+    title: 'StudyArena — live quizzes from your sources',
+    description:
+      'Join a live StudyArena quiz with your game code, or turn a Wikipedia topic or your notes into a quiz with sources.',
+  },
 }

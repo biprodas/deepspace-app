@@ -45,7 +45,7 @@ const PASS_ENV = 'DEEPSPACE_PRERENDER_PASS'
 interface Entry {
   PRERENDER_ROUTES: readonly string[]
   render(route: string): string
-  seo: { origin: string; noindex: boolean }
+  seo: { origin: string; noindex: boolean; appShell?: { title: string; description: string } }
 }
 
 /**
@@ -116,10 +116,14 @@ export function prerender(): Plugin {
         delete process.env[PASS_ENV]
       }
       const entry = (await import(pathToFileURL(join(ssrDir, 'entry.mjs')).href)) as Entry
-      const { origin, noindex } = entry.seo
+      const { origin, noindex, appShell } = entry.seo
 
-      // 2. The plain shell first, from the untouched template.
-      writeFileSync(join(clientDir, SHELL_FILE), noindex ? withNoindexMeta(template) : template)
+      // 2. The plain shell first, from the untouched template, plus the
+      //    description/preview tags for shared app links (src/seo.ts appShell).
+      //    Only the shell gets them, so the landing page keeps exactly one set.
+      let shell = appShell ? withShellMeta(template, appShell) : template
+      if (noindex) shell = withNoindexMeta(shell)
+      writeFileSync(join(clientDir, SHELL_FILE), shell)
 
       // 3. Each page, in the order PAGES lists them (the template was read above,
       //    so overwriting index.html here is safe in any order).
@@ -201,6 +205,19 @@ function stampHead(template: string, head: string): string {
     }
   }
   return stripped.replace('</head>', () => `${head}\n  </head>`)
+}
+
+/** Description and link-preview tags for the app shell (no canonical: it serves many URLs). */
+function withShellMeta(template: string, { title, description }: { title: string; description: string }): string {
+  const attr = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  const tags = [
+    `<meta name="description" content="${attr(description)}"/>`,
+    `<meta property="og:type" content="website"/>`,
+    `<meta property="og:title" content="${attr(title)}"/>`,
+    `<meta property="og:description" content="${attr(description)}"/>`,
+    `<meta name="twitter:card" content="summary"/>`,
+  ].join('\n    ')
+  return template.replace('</head>', () => `    ${tags}\n  </head>`)
 }
 
 function withNoindexMeta(template: string): string {

@@ -8,14 +8,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { DoorOpen, Flag, UserX } from 'lucide-react'
 import { Button, EmptyState } from '@/components/ui'
 import { HostLobby } from '@/components/room/HostLobby'
+import { FocusBar } from '@/components/room/FocusBar'
 import { PlayerLobby } from '@/components/room/PlayerLobby'
 import { ConnectionBanner } from '@/components/game/ConnectionBanner'
 import { FinalScreen } from '@/components/game/FinalScreen'
 import { HostGame } from '@/components/game/HostGame'
 import { PlayerGame } from '@/components/game/PlayerGame'
+import { useFocusMode } from '@/lib/focus-mode'
+import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
 import { useRoom, type RoomState } from '@/lib/use-room'
-import { isClosedStatus } from '@/schemas/game-types'
+import { isClosedStatus, type Room } from '@/schemas/game-types'
 
 export default function RoomPage() {
   // Above every state, so a dropped connection is always explained.
@@ -33,6 +36,10 @@ function RoomBody() {
   const state = useRoom(roomId)
   const { run, pending } = useAction()
   const { room, role } = state
+  // Lobby and live game take the whole screen; results and refusals keep the nav.
+  const inGame = !!room && !isClosedStatus(room.data.status) && ['host', 'co-host', 'player'].includes(role)
+  useFocusMode(inGame)
+  usePageTitle(room ? roomTitle(room.data) : 'Game')
 
   if (state.status === 'loading') {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading room…</div>
@@ -83,7 +90,12 @@ function RoomBody() {
   }
 
   const isPlayer = role === 'player'
-  return <RoomScreen state={state} isPlayer={isPlayer} />
+  return (
+    <>
+      {inGame && <FocusBar state={state} />}
+      <RoomScreen state={state} isPlayer={isPlayer} />
+    </>
+  )
 }
 
 function RoomScreen({ state, isPlayer }: { state: RoomState; isPlayer: boolean }) {
@@ -99,5 +111,18 @@ function RoomScreen({ state, isPlayer }: { state: RoomState; isPlayer: boolean }
       return <FinalScreen state={state} />
     default:
       return null
+  }
+}
+
+/** Tab title that follows the game, so a host juggling tabs can find it. */
+function roomTitle(room: Room): string {
+  switch (room.status) {
+    case 'lobby':
+      return `Lobby ${room.code}`
+    case 'final':
+    case 'cancelled':
+      return 'Results'
+    default:
+      return `Live · ${room.code}`
   }
 }

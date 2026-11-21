@@ -28,6 +28,7 @@
   --color-popover-foreground: #0a0a0a;
   --color-primary: #171717;
   --color-primary-foreground: #ffffff;
+  --color-primary-text: #171717;
   --color-secondary: #f5f5f5;
   --color-secondary-foreground: #0a0a0a;
   --color-muted: #f5f5f5;
@@ -43,4 +44,69 @@
   --shadow-card-hover: 0 2px 8px 0 rgba(0, 0, 0, 0.032);
   --color-shell: #fafafa;
   --color-shell-panel: #ffffff;
+}
+
+/* Arena: StudyArena's theme. Light by default; follows the OS dark mode.
+ * Answer colors, ink and highlighter are constant (styles.css @theme). */
+[data-theme="arena"] {
+  color-scheme: light;
+  --color-background: #fbfaf7;
+  --color-foreground: #14142b;
+  --color-card: #ffffff;
+  --color-card-foreground: #14142b;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #14142b;
+  /* Azure blue: bright and confident, and clear of the four answer
+     colors. White on it is 4.7:1. */
+  --color-primary: #0b72dd;
+  --color-primary-foreground: #ffffff;
+  --color-primary-text: #0b6bcf;
+  --color-secondary: #f1efe9;
+  --color-secondary-foreground: #14142b;
+  --color-muted: #f1efe9;
+  --color-muted-foreground: #5b5b73;
+  --color-accent: #e5f0fc;
+  --color-accent-foreground: #14142b;
+  --color-destructive: #e5484d;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #e7e4dc;
+  --color-input: #d9d5cb;
+  --color-ring: #0b72dd;
+  --radius: 0.75rem;
+  --shadow-card: 0 1px 2px 0 rgba(20, 20, 43, 0.04);
+  --shadow-card-hover: 0 4px 16px 0 rgba(20, 20, 43, 0.08);
+  --color-shell: #f4f2ec;
+  --color-shell-panel: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="arena"] {
+    color-scheme: dark;
+    --color-background: #0f0f1e;
+    --color-foreground: #ecebf5;
+    --color-card: #17172b;
+    --color-card-foreground: #ecebf5;
+    --color-popover: #17172b;
+    --color-popover-foreground: #ecebf5;
+    /* Buttons keep the same azure so white text keeps contrast;
+       text-colored uses (eyebrows, links, icons) take the lighter
+       primary-text, and "correct" text lightens for the dark page. */
+    --color-primary: #0b72dd;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #6cb6ff;
+    --color-correct-text: #4ade80;
+    --color-secondary: #212138;
+    --color-secondary-foreground: #ecebf5;
+    --color-muted: #212138;
+    --color-muted-foreground: #a6a6c0;
+    --color-accent: #0e2440;
+    --color-accent-foreground: #ecebf5;
+    --color-border: #2a2a44;
+    --color-input: #34345a;
+    --color-ring: #4aa3ff;
+    --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-card-hover: 0 4px 16px 0 rgba(0, 0, 0, 0.4);
+    --color-shell: #0b0b17;
+    --color-shell-panel: #17172b;
+  }
 }

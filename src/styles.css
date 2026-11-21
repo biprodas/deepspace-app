@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @import "./themes.css";
+@import "./landing.css";
 
 /* Scan local source + SDK components for Tailwind class usage */
 @source "./**/*.{ts,tsx}";
@@ -26,6 +27,9 @@
   --color-popover-foreground: #e8eaed;
   --color-primary: #818cf8;
   --color-primary-foreground: #ffffff;
+  /* Primary as a text color on the page background (links, eyebrows). Same
+     as primary unless a theme's primary is too dark for small text. */
+  --color-primary-text: #818cf8;
   --color-secondary: #1e1e1e;
   --color-secondary-foreground: #e8eaed;
   --color-muted: #1e1e1e;
@@ -90,6 +94,24 @@
      faintly darker shell. */
   --color-shell: #0a0a0a;
   --color-shell-panel: #161616;
+
+  /* StudyArena brand: the four answer colors, the source highlighter, and
+     the type families. Constant across themes. Text on the answer colors is
+     always ink, never white (white on coral/amber fails AA). */
+  --color-answer-a: #ff5a4e;
+  --color-answer-b: #f472b6;
+  --color-answer-c: #ffb020;
+  --color-answer-d: #a78bfa;
+  /* "Correct" is its own green, never an answer color, so a right answer
+     can't be mistaken for "answer D". Fill vs. text: #12b76a is too light
+     for text or icons on a light page (2.5:1), so those use correct-text. */
+  --color-correct: #12b76a;
+  --color-correct-text: #067647;
+  --color-ink: #14142b;
+  --color-highlight: #ffe45c;
+  --font-display: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
@@ -164,7 +186,7 @@
   }
 
   body {
-    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

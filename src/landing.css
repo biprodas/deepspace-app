@@ -1,0 +1,238 @@
+/*
+ * Landing page motion: the live quiz preview loop and the highlighter swipe.
+ *
+ * The landing page is prerendered and ships no JS-driven animation state, so
+ * everything here is CSS keyframes. The rule that keeps it robust: each
+ * element's DEFAULT style is the reveal frame (correct answer marked, source
+ * quote showing). The 12s loop runs only under `prefers-reduced-motion:
+ * no-preference`; everyone else, and any browser that skips the animation,
+ * sees that most informative frame and nothing moves.
+ *
+ * Loop timeline (percent of 12s):
+ *   0–15   lobby: players joining
+ *   17–50  question: countdown drains, answers come in, player locks in B
+ *   52–75  reveal: B marked correct, source sentence slides up
+ *   78–96  leaderboard: Maya climbs from #4 to #2
+ */
+
+@property --qp-t {
+  syntax: '<integer>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --qp-n {
+  syntax: '<integer>';
+  inherits: false;
+  initial-value: 18;
+}
+
+/* ---- Default (reveal) frame ------------------------------------------- */
+
+.qp-lobby,
+.qp-board,
+.qp-locked {
+  opacity: 0;
+}
+
+.qp-board {
+  pointer-events: none;
+}
+
+.qp-bar {
+  width: var(--w);
+}
+
+.qp-ring {
+  stroke-dashoffset: 100;
+}
+
+.qp-count {
+  --qp-t: 0;
+  counter-reset: qp-t var(--qp-t);
+}
+.qp-count::after {
+  content: counter(qp-t);
+}
+
+.qp-players {
+  counter-reset: qp-n var(--qp-n);
+}
+.qp-players::before {
+  content: counter(qp-n);
+}
+
+.qp-dim {
+  opacity: 0.4;
+}
+
+.qp-pick {
+  box-shadow: 0 0 0 3px var(--color-primary);
+}
+
+/* ---- The loop ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .qp-lobby    { animation: qp-lobby 12s linear infinite; }
+  .qp-question { animation: qp-question 12s linear infinite; }
+  .qp-reveal   { animation: qp-reveal 12s ease-out infinite; }
+  .qp-source   { animation: qp-source 12s cubic-bezier(0.2, 0.8, 0.2, 1) infinite; }
+  .qp-board    { animation: qp-board 12s linear infinite; }
+  .qp-bar      { animation: qp-bar 12s cubic-bezier(0.3, 0.7, 0.3, 1) infinite; }
+  .qp-ring     { animation: qp-ring 12s linear infinite; }
+  .qp-count    { animation: qp-count 12s linear infinite; }
+  .qp-players  { animation: qp-players 12s steps(6, end) infinite; }
+  .qp-dim      { animation: qp-dim 12s linear infinite; }
+  .qp-pick     { animation: qp-pick 12s linear infinite; }
+  .qp-locked   { animation: qp-locked 12s linear infinite; }
+  .qp-rise     { animation: qp-rise 12s cubic-bezier(0.3, 0.7, 0.2, 1) infinite; }
+  .qp-drop     { animation: qp-drop 12s cubic-bezier(0.3, 0.7, 0.2, 1) infinite; }
+  .qp-gain     { animation: qp-gain 12s linear infinite; }
+  .qp-pop      { animation: qp-pop 12s ease-out infinite; animation-delay: var(--d, 0s); }
+
+  .float-shape { animation: float-shape 7s ease-in-out infinite alternate; }
+  .join-pulse  { animation: join-pulse 1.4s ease-out 0.8s 2; }
+}
+
+@keyframes qp-lobby {
+  0%        { opacity: 0; }
+  2%, 14%   { opacity: 1; }
+  16%, 100% { opacity: 0; }
+}
+
+@keyframes qp-question {
+  0%, 14%   { opacity: 0; }
+  17%, 74%  { opacity: 1; }
+  77%, 100% { opacity: 0; }
+}
+
+@keyframes qp-reveal {
+  0%, 50%   { opacity: 0; }
+  53%, 100% { opacity: 1; }
+}
+
+@keyframes qp-source {
+  0%, 51%   { opacity: 0; transform: translateY(14px); }
+  56%, 74%  { opacity: 1; transform: none; }
+  77%, 100% { opacity: 0; transform: none; }
+}
+
+@keyframes qp-board {
+  0%, 76%   { opacity: 0; }
+  79%, 95%  { opacity: 1; }
+  98%, 100% { opacity: 0; }
+}
+
+@keyframes qp-bar {
+  0%, 18%   { width: 0; }
+  48%, 100% { width: var(--w); }
+}
+
+@keyframes qp-ring {
+  0%, 17%   { stroke-dashoffset: 0; }
+  50%, 100% { stroke-dashoffset: 100; }
+}
+
+@keyframes qp-count {
+  0%, 17%   { --qp-t: 20; }
+  50%, 100% { --qp-t: 0; }
+}
+
+@keyframes qp-players {
+  0%        { --qp-n: 12; }
+  13%, 100% { --qp-n: 18; }
+}
+
+@keyframes qp-dim {
+  0%, 50%   { opacity: 1; }
+  53%, 100% { opacity: 0.4; }
+}
+
+@keyframes qp-pick {
+  0%, 31%   { box-shadow: none; }
+  32%, 100% { box-shadow: 0 0 0 3px var(--color-primary); }
+}
+
+@keyframes qp-locked {
+  0%, 31%   { opacity: 0; }
+  33%, 49%  { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes qp-rise {
+  0%, 81%   { transform: translateY(200%); }
+  87%, 100% { transform: none; }
+}
+
+@keyframes qp-drop {
+  0%, 81%   { transform: translateY(-100%); }
+  87%, 100% { transform: none; }
+}
+
+@keyframes qp-gain {
+  0%, 85%   { opacity: 0; }
+  88%, 100% { opacity: 1; }
+}
+
+@keyframes qp-pop {
+  0%        { opacity: 0; transform: scale(0.4); }
+  3%        { opacity: 1; transform: scale(1.12); }
+  5%, 100%  { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float-shape {
+  from { transform: translateY(0) rotate(var(--r, 0deg)); }
+  to   { transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 8deg)); }
+}
+
+@keyframes join-pulse {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent); }
+  to   { box-shadow: 0 0 0 10px transparent; }
+}
+
+/* ---- Highlighter --------------------------------------------------------- */
+
+/* Ink on solid yellow in both themes, so the marked words keep contrast on
+ * a dark page too. The swipe runs once as the mark scrolls into view, where
+ * scroll-driven animations exist; elsewhere the mark is simply there. */
+.hl {
+  color: var(--color-ink);
+  background-image: linear-gradient(
+    100deg,
+    transparent 0.2em,
+    var(--color-highlight) 0.25em,
+    var(--color-highlight) calc(100% - 0.25em),
+    transparent calc(100% - 0.2em)
+  );
+  background-repeat: no-repeat;
+  background-position: 0 60%;
+  background-size: 100% 78%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 0.2em;
+  margin: 0 -0.05em;
+  border-radius: 0.15em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .hl {
+      animation: hl-swipe linear both;
+      animation-timeline: view();
+      animation-range: entry 30% cover 35%;
+    }
+  }
+}
+
+/* Above the fold, swipe once on load instead of on scroll. */
+@media (prefers-reduced-motion: no-preference) {
+  .hl.hl-load {
+    animation: hl-swipe 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.5s both;
+    animation-timeline: auto;
+  }
+}
+
+@keyframes hl-swipe {
+  from { background-size: 0% 78%; }
+  to   { background-size: 100% 78%; }
+}

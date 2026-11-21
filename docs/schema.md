@@ -7,6 +7,8 @@ The real definitions are DeepSpace `CollectionSchema` files in
 Every record also gets `recordId`, `createdBy`, `createdAt` and `updatedAt`
 automatically; they're listed once, on `Quiz`. `User` is DeepSpace's
 built-in users collection. Permissions are in [trd.md §4](./trd.md#4-data-model).
+`DateTime` fields on game collections are stored as epoch milliseconds
+(`number` columns), so deadline arithmetic needs no parsing.
 
 **Rule that shapes this schema:** DeepSpace permissions are per record, not
 per field. Anything a player must not see yet (correct answer, explanation)
@@ -16,6 +18,7 @@ lives in a record they can't read, or stays empty until the server fills it.
 // ─── Enums ──────────────────────────────────────────────
 
 enum SourceType {
+  manual    // hand-written questions, no AI run
   wikipedia
   notes
 }
@@ -147,6 +150,7 @@ model Round {
   status       RoundStatus
   startedAt    DateTime
   deadline     DateTime
+  timeLimitMs  Int         // copied from the question; pauses move deadline, not this
   remainingMs  Int?        // set while the room is paused
   revealedAt   DateTime?
   // reveal fields (null until reveal)

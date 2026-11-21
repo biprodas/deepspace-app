@@ -74,27 +74,32 @@ on the server → state check → `tools.*` writes →
 
 ### M0 — Foundation (backend only, no UI)
 
-- `src/schemas/` — one file per collection from schema.md: `quizzes.ts`,
-  `questions.ts`, `answer-keys.ts`, `generations.ts`, `rooms.ts`,
-  `rounds.ts`, `room-players.ts`, `answers.ts`, `standings.ts`. Permissions
-  per [trd.md §4](./trd.md#4-data-model): `create/update/delete: false` for
-  every client role; `read: true` except `answer_keys` (`'own'`,
-  `ownerField: 'ownerId'`), `generations` and `answers` (`'own'`,
-  `ownerField: 'userId'`). `uniqueOn` per trd §4. Register in
-  `src/schemas.ts`; keep `usersSchema` read `'own'`.
-- `src/actions/` — split the registry: `index.ts` spreads `quiz.ts`,
-  `room.ts`, `game.ts`. Shared helpers in `src/actions/_shared.ts`:
-  `ok(data)` (adds `serverNow`), `fail(error, code)`, `parse(schema,
-  params)`, `getOr404(tools, collection, id)`, `requireQuizOwner`,
-  `requireHost`, `requireHostOrCoHost`.
-- `src/lib/scoring.ts` — `points()`, `rankStandings()` (score desc →
-  `correctMs` asc → `joinedAt` asc), `computeStandings(players, answers)`;
-  constants `GRACE_MS = 300`, `MAX_PLAYERS = 50`,
+- `src/schemas/quiz-schemas.ts` (`quizzes`, `questions`, `answer_keys`,
+  `generations`) and `src/schemas/game-schemas.ts` (`rooms`, `rounds`,
+  `room_players`, `answers`, `standings`), built with the column helpers
+  in `schema-helpers.ts`; record types and enums in `game-types.ts`.
+  Permissions per [trd.md §4](./trd.md#4-data-model):
+  `create/update/delete: false` for every client role; `read: true` except
+  `answer_keys` (`'own'`, `ownerField: 'ownerId'`), `generations` and
+  `answers` (`'own'`, `ownerField: 'userId'`). `uniqueOn` per trd §4.
+  Registered in `src/schemas.ts`; `usersSchema` keeps read `'own'`.
+- `src/actions/` — `index.ts` spreads one map per area (`game.ts` now;
+  `quiz.ts`, `room.ts` in M1–M2). `src/actions/shared.ts`:
+  `defineAction(zodSchema, run)` (parses params, maps thrown
+  `ActionError`s to `{ success: false, error, code }`, adds `serverNow`),
+  `unwrap`, `findRecord` / `getRecord` / `queryRecords`, `isDuplicate`,
+  `requireQuizOwner`, `requireHost`, `requireHostOrCoHost`.
+- `src/lib/scoring.ts` — `elapsedMs()` (from the remaining time, so paused
+  time doesn't count), `points()`, `computeStandings(players, answers)`
+  (score desc → `correctMs` asc → `joinedAt` asc). Limits in
+  `src/lib/game-rules.ts`: `GRACE_MS = 300`, `MAX_PLAYERS = 50`,
   `TIME_LIMITS = [10, 20, 30, 60]`.
 - `src/lib/actions-client.ts` — typed `callAction<T>(name, params)` for
   `POST /api/actions/<name>` with the user's bearer token.
 - `getServerTime` action.
-- Tests: `src/lib/scoring.test.ts` (formula bounds 500–1000, clamping, ties).
+- Tests: `src/lib/scoring.test.ts` (formula bounds 500–1000, clamping,
+  pauses, ties); `src/schemas.test.ts` (SDK schema lint, no client writes,
+  owner-only reads on `answer_keys` / `answers` / `generations`).
 - **Done when:** `npm run validate` passes, the dev server starts, and the
   collections exist in the RecordRoom.
 
@@ -184,8 +189,9 @@ leaderboard`), owner-only `exportData` + `/admin/data`
 
 ## 4. Files
 
-- **New:** `src/schemas/*.ts`, `src/actions/{_shared,quiz,room,game}.ts`,
-  `src/lib/{scoring,generation,clock,actions-client}.ts` (+ `.test.ts`),
+- **New:** `src/schemas/*.ts`, `src/actions/{shared,quiz,room,game}.ts`,
+  `src/lib/{game-rules,scoring,generation,clock,actions-client}.ts`
+  (+ `.test.ts`),
   pages under `src/pages/(app)/(protected)/{quizzes,rooms}/`.
 - **Changed:** `src/schemas.ts`, `src/actions/index.ts`, `src/jobs.ts`,
   `src/server/action-routes.ts` (export `createActionTools`), `src/nav.ts`,

@@ -27,11 +27,34 @@
       html { background-color: #0a0a0a; color-scheme: dark; }
       html[data-theme="paper"] { background-color: #ffffff; color-scheme: light; }
       html[data-theme="arena"] { background-color: #fbfaf7; color-scheme: light; }
-      @media (prefers-color-scheme: dark) {
-        html[data-theme="arena"] { background-color: #0f0f1e; color-scheme: dark; }
-      }
+      html[data-theme="arena"][data-mode="dark"] { background-color: #0f0f1e; color-scheme: dark; }
       /* Add one line per theme you create, mirroring its --color-background. */
     </style>
+    <!--
+      Light / dark mode, resolved before first paint so a dark page never
+      flashes light: the visitor's saved choice, else the OS setting (followed
+      live while there is no saved choice). Mirrors src/lib/color-mode.ts;
+      keep the storage key and attribute in sync.
+    -->
+    <script>
+      (function () {
+        var key = 'studyarena:color-mode'
+        var root = document.documentElement
+        var media = window.matchMedia('(prefers-color-scheme: dark)')
+        function saved() {
+          try {
+            var v = localStorage.getItem(key)
+            return v === 'light' || v === 'dark' ? v : null
+          } catch (e) {
+            return null
+          }
+        }
+        root.dataset.mode = saved() || (media.matches ? 'dark' : 'light')
+        media.addEventListener('change', function (e) {
+          if (!saved()) root.dataset.mode = e.matches ? 'dark' : 'light'
+        })
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

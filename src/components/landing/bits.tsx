@@ -90,7 +90,7 @@ export function PhoneFrame({ children, className }: { children: ReactNode; class
   return (
     <div
       className={cn(
-        'rounded-[2rem] border border-border bg-ink p-2 shadow-[0_24px_48px_-16px_rgba(20,20,43,0.35)]',
+        'rounded-[2rem] border border-border bg-ink p-2 shadow-[0_24px_48px_-16px_rgba(20,20,43,0.35)] dark:border-[#4a4a72] dark:bg-[#2c2c4a]',
         className,
       )}
     >

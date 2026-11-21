@@ -20,7 +20,7 @@ export const THEMES = [
   {
     id: 'arena',
     label: 'Arena',
-    description: 'StudyArena: warm off-white, electric indigo, four answer colors. Follows the OS dark mode.',
+    description: 'StudyArena: warm off-white, electric indigo, four answer colors. Light and dark modes (see src/lib/color-mode.ts).',
   },
   {
     id: 'slate',

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Gamepad2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ColorModeToggle } from '../ColorModeToggle'
 import { CREATE_QUIZ_PATH, Logo } from './bits'
 import { focusHeroJoin } from './JoinCodeForm'
 
@@ -29,7 +30,8 @@ export function LandingHeader() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2">
+          <ColorModeToggle />
           {/* The hero's code card is the one place to type a code; this
               shortcut brings it back into view from anywhere on the page. */}
           <a
@@ -37,11 +39,11 @@ export function LandingHeader() {
             onClick={focusHeroJoin}
             className={cn(pillLink, 'h-10 border border-input bg-card px-3 text-sm md:border-transparent md:bg-transparent md:hover:bg-card')}
           >
-            <Gamepad2 aria-hidden="true" className="hidden size-4 md:block" />
-            <span className="md:hidden">Join game</span>
+            <Gamepad2 aria-hidden="true" className="size-4" />
+            <span className="md:hidden">Join</span>
             <span className="hidden md:inline">Join a game</span>
           </a>
-          <Link to="/home" className={cn(pillLink, 'h-10 px-3 text-sm text-muted-foreground hover:text-foreground')}>
+          <Link to="/home" className={cn(pillLink, 'h-10 px-2 text-sm text-muted-foreground hover:text-foreground sm:px-3')}>
             Sign in
           </Link>
           <Link

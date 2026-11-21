@@ -2,6 +2,10 @@
 @import "./themes.css";
 @import "./landing.css";
 
+/* `dark:` utilities follow the page's resolved mode (<html data-mode>, see
+   src/lib/color-mode.ts), not the OS media query, so the toggle drives them. */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
 /* Scan local source + SDK components for Tailwind class usage */
 @source "./**/*.{ts,tsx}";
 @source "../node_modules/deepspace/dist/**/*.js";

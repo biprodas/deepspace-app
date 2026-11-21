@@ -17,16 +17,16 @@ import { joinPath, parseJoinCode } from '@/lib/join-code'
 /** id of the hero's code input, the target of every "Join game" shortcut. */
 export const HERO_JOIN_INPUT_ID = 'join-code'
 
-/** Scroll the hero join field into view and focus it. */
+/** The hero listens for this, scrolls to its code field and focuses it. */
+export const OPEN_HERO_JOIN_EVENT = 'studyarena:open-join'
+
+/** Bring the hero's code field into view and focus it. */
 export function focusHeroJoin(event?: { preventDefault(): void }) {
-  const input = document.getElementById(HERO_JOIN_INPUT_ID)
-  if (!input) return
   event?.preventDefault()
-  input.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  input.focus({ preventScroll: true })
+  window.dispatchEvent(new Event(OPEN_HERO_JOIN_EVENT))
 }
 
-type Variant = 'hero' | 'header' | 'band'
+type Variant = 'hero' | 'band'
 
 interface JoinCodeFormProps {
   variant: Variant
@@ -68,7 +68,7 @@ export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: 
         setValue(e.target.value.toUpperCase())
         setError(false)
       }}
-      placeholder={variant === 'header' ? 'Game code' : 'ENTER CODE'}
+      placeholder="ENTER CODE"
       autoComplete="off"
       autoCapitalize="characters"
       autoCorrect="off"
@@ -80,8 +80,7 @@ export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: 
       className={cn(
         'w-full min-w-0 flex-1 rounded-lg border bg-card font-mono font-bold uppercase tracking-[0.18em] text-card-foreground outline-none transition-colors placeholder:font-medium placeholder:tracking-[0.12em] placeholder:text-muted-foreground/70 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/25',
         error ? 'border-destructive' : 'border-input',
-        variant === 'header' ? 'h-10 px-3 text-sm' : 'h-12 px-4 text-xl',
-        variant === 'hero' && 'join-pulse',
+        'h-12 px-4 text-xl',
         variant === 'band' && 'border-transparent',
       )}
     />
@@ -92,14 +91,14 @@ export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: 
       type="submit"
       className={cn(
         'inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg font-bold transition-[transform,background-color] outline-none hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-primary/40',
-        variant === 'header' ? 'h-10 px-3 text-sm' : 'h-12 px-5 text-base',
+        'h-12 px-5 text-base',
         variant === 'band'
           ? 'bg-ink text-white hover:bg-ink/90 focus-visible:ring-white/60'
           : 'bg-foreground text-background hover:bg-foreground/90',
       )}
     >
       Join
-      {variant !== 'header' && <ArrowRight aria-hidden="true" className="size-4" />}
+      <ArrowRight aria-hidden="true" className="size-4" />
     </button>
   )
 
@@ -108,25 +107,6 @@ export function JoinCodeForm({ variant, inputId, prefillFromQuery, className }: 
       Codes are 6 letters or numbers, like K7QX9P.
     </p>
   )
-
-  if (variant === 'header') {
-    return (
-      <form method="get" action="/" onSubmit={onSubmit} noValidate className={cn('relative', className)}>
-        <label htmlFor={id} className="sr-only">
-          Game code
-        </label>
-        <div className="flex items-center gap-1.5">
-          {input}
-          {submit}
-        </div>
-        {error && (
-          <p id={errorId} role="alert" className="absolute right-0 top-full mt-1 whitespace-nowrap rounded-md bg-card px-2 py-1 text-xs font-bold text-destructive shadow-sm">
-            Use a 6-character code, like K7QX9P.
-          </p>
-        )}
-      </form>
-    )
-  }
 
   return (
     <form method="get" action="/" onSubmit={onSubmit} noValidate className={className}>

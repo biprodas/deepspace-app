@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
+import { Gamepad2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CREATE_QUIZ_PATH, Logo } from './bits'
-import { focusHeroJoin, JoinCodeForm } from './JoinCodeForm'
+import { focusHeroJoin } from './JoinCodeForm'
 
 const NAV = [
   { href: '#how', label: 'How it works' },
@@ -10,7 +11,7 @@ const NAV = [
 ]
 
 export const pillLink =
-  'inline-flex items-center justify-center gap-1.5 rounded-lg font-bold outline-none transition-[transform,background-color,color] hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-primary/40'
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-bold outline-none transition-[transform,background-color,color] hover:-translate-y-0.5 focus-visible:ring-[3px] focus-visible:ring-primary/40'
 
 export function LandingHeader() {
   return (
@@ -29,13 +30,16 @@ export function LandingHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <JoinCodeForm variant="header" className="hidden w-[15rem] md:block" />
+          {/* The hero's code card is the one place to type a code; this
+              shortcut brings it back into view from anywhere on the page. */}
           <a
             href="#join"
             onClick={focusHeroJoin}
-            className={cn(pillLink, 'h-10 border border-input bg-card px-3 text-sm md:hidden')}
+            className={cn(pillLink, 'h-10 border border-input bg-card px-3 text-sm md:border-transparent md:bg-transparent md:hover:bg-card')}
           >
-            Join game
+            <Gamepad2 aria-hidden="true" className="hidden size-4 md:block" />
+            <span className="md:hidden">Join game</span>
+            <span className="hidden md:inline">Join a game</span>
           </a>
           <Link to="/home" className={cn(pillLink, 'h-10 px-3 text-sm text-muted-foreground hover:text-foreground')}>
             Sign in

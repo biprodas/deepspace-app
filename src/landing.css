@@ -91,7 +91,6 @@
   .qp-pop      { animation: qp-pop 12s ease-out infinite; animation-delay: var(--d, 0s); }
 
   .float-shape { animation: float-shape 7s ease-in-out infinite alternate; }
-  .join-pulse  { animation: join-pulse 1.4s ease-out 0.8s 2; }
 }
 
 @keyframes qp-lobby {
@@ -185,11 +184,6 @@
   to   { transform: translateY(-10px) rotate(calc(var(--r, 0deg) + 8deg)); }
 }
 
-@keyframes join-pulse {
-  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 45%, transparent); }
-  to   { box-shadow: 0 0 0 10px transparent; }
-}
-
 /* ---- Highlighter --------------------------------------------------------- */
 
 /* Ink on solid yellow in both themes, so the marked words keep contrast on
@@ -224,12 +218,38 @@
   }
 }
 
-/* Above the fold, swipe once on load instead of on scroll. */
+/* ---- Hero accents --------------------------------------------------------- */
+
+/* The brush underline under "play": drawn by default, drawn in on load
+ * with motion. */
+.underline-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+/* The badge's "live" dot: a soft ring that breathes out from it. */
+.live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .hl.hl-load {
-    animation: hl-swipe 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.5s both;
-    animation-timeline: auto;
-  }
+  .underline-draw { animation: underline-draw 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) 0.45s both; }
+  .live-dot::after { animation: live-dot 2s ease-out infinite; }
+}
+
+@keyframes underline-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes live-dot {
+  from { opacity: 0.55; transform: scale(1); }
+  to   { opacity: 0; transform: scale(2.6); }
 }
 
 @keyframes hl-swipe {

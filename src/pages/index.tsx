@@ -36,6 +36,7 @@ import {
   Receipts,
 } from '../components/landing/LandingSections'
 import { Features } from '../components/landing/Features'
+import { HeroWatermarks } from '../components/landing/HeroWatermarks'
 import { MobileJoinBar } from '../components/landing/MobileJoinBar'
 import { QuizPreview } from '../components/landing/QuizPreview'
 
@@ -78,11 +79,14 @@ function Hero() {
 
   return (
     <section id="hero" aria-labelledby="hero-title" className="relative isolate overflow-x-clip">
-      {/* Backdrop: a dot grid that fades out toward the edges, and soft
-          glows (pink behind the quiz preview, amber on the left). Gives the top of the page its
-          own atmosphere so it doesn't run into the sections below. */}
+      {/* Backdrop: a fading dot grid, faint quiz-glyph watermarks in the
+          empty space, and soft
+          glows (pink behind the quiz preview, amber on the left). Gives the
+          top of the page its own atmosphere so it doesn't run into the
+          sections below. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="hero-dots absolute inset-0" />
+        <HeroWatermarks />
         <div className="absolute right-[6%] top-[22%] size-[420px] rounded-full bg-answer-b/12 blur-3xl dark:bg-answer-b/10" />
         <div className="absolute left-[-10%] top-[30%] size-[320px] rounded-full bg-answer-c/10 blur-3xl dark:bg-answer-c/5" />
       </div>

@@ -19,17 +19,22 @@ export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-        <Link to="/" aria-label="StudyArena home" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40">
-          <Logo />
-        </Link>
+        {/* Brand and nav share a text baseline: the two fonts sit at
+            different heights in their line boxes, so centering the boxes
+            would leave the words visibly out of line. */}
+        <div className="flex items-baseline gap-4">
+          <Link to="/" aria-label="StudyArena home" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40">
+            <Logo />
+          </Link>
 
-        <nav aria-label="Page" className="ml-4 hidden items-center gap-5 text-sm font-bold text-muted-foreground lg:flex">
-          {NAV.map((n) => (
-            <a key={n.href} href={n.href} className="rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:underline">
-              {n.label}
-            </a>
-          ))}
-        </nav>
+          <nav aria-label="Page" className="ml-4 hidden gap-5 text-sm font-bold text-muted-foreground lg:flex">
+            {NAV.map((n) => (
+              <a key={n.href} href={n.href} className="rounded-sm outline-none hover:text-foreground focus-visible:text-foreground focus-visible:underline">
+                {n.label}
+              </a>
+            ))}
+          </nav>
+        </div>
 
         <div className="ml-auto flex items-center gap-1 sm:gap-2">
           <ColorModeToggle />

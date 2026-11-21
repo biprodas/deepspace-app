@@ -49,22 +49,38 @@ export function AnswerChip({ index, className }: { index: number; className?: st
   )
 }
 
-export function LogoMark({ className }: { className?: string }) {
+/**
+ * The four answer colors as one mark. With `check`, the "B" tile carries a
+ * white tick: the right answer, the moment every game builds to. Leave it
+ * off where the mark is too small to read (e.g. the dark-mode switch).
+ */
+export function LogoMark({ className, check }: { className?: string; check?: boolean }) {
   return (
-    <span aria-hidden="true" className={cn('grid size-6 grid-cols-2 gap-0.5', className)}>
-      <span className="rounded-[3px] bg-answer-a" />
-      <span className="rounded-[3px] bg-answer-b" />
-      <span className="rounded-[3px] bg-answer-c" />
-      <span className="rounded-[3px] bg-answer-d" />
+    <span aria-hidden="true" className={cn('grid size-6 grid-cols-2 gap-[2px]', className)}>
+      <span className="rounded-[4px] rounded-tl-[7px] bg-answer-a" />
+      <span className="relative rounded-[4px] rounded-tr-[7px] bg-answer-b">
+        {check && (
+          <svg viewBox="0 0 12 12" className="absolute inset-0 size-full p-[2px]">
+            <path d="M2.8 6.3 5 8.4l4.2-4.6" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </span>
+      <span className="rounded-[4px] rounded-bl-[7px] bg-answer-c" />
+      <span className="rounded-[4px] rounded-br-[7px] bg-answer-d" />
     </span>
   )
 }
 
 export function Logo() {
   return (
+    // The wordmark is the baseline item, so the logo reports its text
+    // baseline and can sit level with neighbouring text (e.g. header nav).
     <span className="inline-flex items-center gap-2">
-      <LogoMark />
-      <span className="font-display text-lg font-extrabold tracking-tight">{BRAND}</span>
+      <LogoMark check />
+      <span className="self-baseline font-display text-lg font-extrabold tracking-tight">
+        <span className="text-foreground">Study</span>
+        <span className="text-primary-text">Arena</span>
+      </span>
     </span>
   )
 }

@@ -17,6 +17,9 @@ export type GenerationStatus = (typeof GENERATION_STATUSES)[number]
 export type RoomStatus = (typeof ROOM_STATUSES)[number]
 export type RoundStatus = (typeof ROUND_STATUSES)[number]
 
+/** A finished or ended game: nothing can change any more. */
+export const isClosedStatus = (status: RoomStatus) => status === 'final' || status === 'cancelled'
+
 export interface Quiz {
   ownerId: string
   title: string

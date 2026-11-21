@@ -11,12 +11,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
-import { ArrowLeft, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ListChecks, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import { Badge, Button, ConfirmModal, EmptyState, Input } from '@/components/ui'
 import { QuestionCard } from '@/components/quiz/QuestionCard'
 import { QuestionForm, type QuestionValues } from '@/components/quiz/QuestionForm'
 import { useAction } from '@/lib/use-action'
-import type { AnswerKey, Question, Quiz } from '@/schemas/game-types'
+import { isClosedStatus, type AnswerKey, type Question, type Quiz, type Room } from '@/schemas/game-types'
 
 export default function QuizEditorPage() {
   const { quizId = '' } = useParams()
@@ -31,6 +31,8 @@ export default function QuizEditorPage() {
     orderDir: 'asc',
   })
   const answerKeys = useQuery<AnswerKey>('answer_keys', { where: { quizId } })
+  const rooms = useQuery<Room>('rooms', { where: { quizId } })
+  const openRooms = rooms.records.filter((r) => !isClosedStatus(r.data.status))
 
   const keysByQuestion = useMemo(
     () => new Map(answerKeys.records.map((k) => [k.data.questionId, k.data])),
@@ -95,16 +97,55 @@ export default function QuizEditorPage() {
           </p>
         </div>
         {isOwner && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-3 text-muted-foreground hover:text-destructive sm:ml-0"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 /> Delete quiz
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+            <Button
+              disabled={approvedCount === 0}
+              loading={pending === 'createRoom'}
+              onClick={async () => {
+                const result = await run<{ roomId: string }>('createRoom', { quizId })
+                if (result.success) navigate(`/rooms/${result.data.roomId}`)
+              }}
+            >
+              <Play /> Host a game
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 /> Delete quiz
+            </Button>
+          </div>
         )}
       </header>
+
+      {isOwner && openRooms.length > 0 && (
+        <section
+          aria-labelledby="open-games"
+          className="mb-6 rounded-xl border border-primary/40 bg-primary/5 p-4"
+        >
+          <h2 id="open-games" className="text-sm font-semibold">
+            Open game{openRooms.length === 1 ? '' : 's'}
+          </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Questions can’t change while a game is open. End it from its lobby to edit again.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {openRooms.map((r) => (
+              <li key={r.recordId}>
+                <Link
+                  to={`/rooms/${r.recordId}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+                >
+                  <span className="font-mono font-bold tracking-[0.15em]">{r.data.code}</span>
+                  <span className="text-muted-foreground">{r.data.status}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {!isOwner ? (
         <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">

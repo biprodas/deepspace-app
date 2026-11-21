@@ -129,15 +129,27 @@ on the server → state check → `tools.*` writes →
 
 ### M2 — Rooms and lobby (F3, F9)
 
-- Actions (`room.ts`): `createRoom` (≥ 1 approved question; mints a code in
-  the `parseJoinCode` alphabet, retries on a `uniqueOn` clash), `joinRoom`
-  (idempotent; refuses removed / full / `final` / `cancelled`; sets
-  `firstRoundNumber`), `removePlayer`, `addCoHost`.
-- UI: `rooms/[roomId].tsx` with host and player views chosen by role; lobby
-  list from `room_players` + ``usePresenceRoom(`room:<id>`)`` for online
-  dots; `join/[code].tsx` resolves the code → `joinRoom` → redirect.
-- Tests: `collab.spec.ts` — two users see each other join; a removed
-  player's rejoin is refused.
+- Actions (`room.ts`): `createRoom` (owner, quiz `ready`, ≥ 1 approved
+  question; `mintJoinCode` uses the `parseJoinCode` alphabet minus
+  look-alikes 0/O/1/I/L, retries on a `uniqueOn` clash), `joinRoom`
+  (idempotent; host/co-hosts get `role: 'host'`; refuses removed / full /
+  `final` / `cancelled`; sets `firstRoundNumber`; display name from
+  `users`), `removePlayer`, `addCoHost` (lobby only: a promoted player's
+  row is deleted, since co-hosts can't answer), `removeCoHost`, and
+  `endRoom` (moved up from M3: without it a lobby could never close and
+  its quiz stayed frozen).
+- UI: `rooms/[roomId].tsx` picks the screen from the viewer's role (host /
+  co-host / player / removed / outsider) and room status, all live via
+  `lib/use-room.ts`; `components/room/HostLobby` (projector: big code,
+  invite link, roster with remove / make co-host, end game),
+  `PlayerLobby` (phone: "you're in", roster, host-offline banner),
+  `PlayerList` with online dots from ``usePresenceRoom(`room:<id>`)``;
+  `join/[code].tsx` joins once and redirects, or explains the refusal.
+  The quiz editor gets "Host a game" and an "Open games" list.
+- Tests: `tests/rooms.spec.ts` — code format, host can't play, quiz frozen
+  while open, end game, bad codes; with 2 accounts: live join, offline on
+  leave, idempotent rejoin, remove → refused, host-only actions refused,
+  co-host promotion.
 - **Done when:** features.md F3's "done when".
 
 ### M3 — Game loop, reveal, final (F4–F6): the core claim

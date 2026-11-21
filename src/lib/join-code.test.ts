@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseJoinCode } from './join-code'
+import { mintJoinCode, parseJoinCode } from './join-code'
 
 describe('parseJoinCode', () => {
   it.each([
@@ -19,4 +19,23 @@ describe('parseJoinCode', () => {
       expect(parseJoinCode(input)).toBeNull()
     },
   )
+})
+
+describe('mintJoinCode', () => {
+  it('mints codes that parse back to themselves', () => {
+    for (let i = 0; i < 200; i++) {
+      const code = mintJoinCode()
+      expect(parseJoinCode(code)).toBe(code)
+    }
+  })
+
+  it('avoids look-alike characters', () => {
+    const codes = Array.from({ length: 200 }, () => mintJoinCode()).join('')
+    expect(codes).not.toMatch(/[01OIL]/)
+  })
+
+  it('maps the random source onto the alphabet', () => {
+    expect(mintJoinCode(() => 0)).toBe('AAAAAA')
+    expect(mintJoinCode(() => 0.9999)).toBe('999999')
+  })
 })

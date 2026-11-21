@@ -65,8 +65,40 @@ npx deepspace test run           # quick Playwright suite against the dev server
 npx deepspace test run all       # every spec
 ```
 
-Multi-user tests need at least two test accounts
-(`npx deepspace test accounts create`).
+### Test accounts
+
+Multi-user specs sign in as `@deepspace.test` accounts through the
+`deepspace/testing` `users` fixture. Specs that need more accounts than
+exist are skipped, and the run says so.
+
+| Accounts | Covers |
+|---|---|
+| 1 | Owner and host flows (quizzes, rooms) |
+| 2 | Another user is refused; lobby join/leave, remove, co-host |
+| 3 | Game loop: host + 2 players see identical standings, ties included |
+
+Create them once per machine. The password is read without echo and kept
+out of shell history (Git Bash):
+
+```bash
+read -rsp "Password: " PW; echo
+printf %s "$PW" | npx deepspace test accounts create \
+  --email player2@deepspace.test --name "Player Two" --password-stdin
+unset PW
+```
+
+Repeat with `player3@deepspace.test` / `"Player Three"`. Check them with
+`npx deepspace test accounts list --usable`.
+
+- **Where they live:** the account is created on the DeepSpace platform
+  (10 per developer), and the CLI saves the credentials locally in
+  `~/.deepspace/test-accounts.json`, so the test runner signs in without
+  asking.
+- **No GUI:** accounts are managed only with the CLI. To check one by hand,
+  run `npm run dev`, open `/sign-in` (the email form shows in dev, or add
+  `?test=1`) and sign in with it.
+- **Another machine:** `npx deepspace test accounts recover --all` fetches
+  existing accounts.
 
 ## Deploy
 

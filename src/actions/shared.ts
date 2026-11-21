@@ -12,7 +12,7 @@ import { RECORD_NOT_FOUND } from 'deepspace/worker'
 import type { ActionContext, ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import { z } from 'zod'
 import type { Env } from '../../worker'
-import type { Quiz, Room } from '../schemas/game-types'
+import { isClosedStatus, type Quiz, type Room } from '../schemas/game-types'
 
 export class ActionError extends Error {
   constructor(
@@ -110,6 +110,8 @@ export function requireQuizOwner(quiz: Rec<Quiz>, userId: string): void {
     throw new ActionError('Only the quiz owner can do that', 'forbidden')
   }
 }
+
+export const isClosed = (room: Room): boolean => isClosedStatus(room.status)
 
 export function isHost(room: Rec<Room>, userId: string): boolean {
   return room.data.hostId === userId

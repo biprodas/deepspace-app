@@ -19,3 +19,19 @@ export function parseJoinCode(input: string): string | null {
 export function joinPath(code: string): string {
   return `/join/${code}`
 }
+
+/** No 0/O, 1/I/L: codes are read off a projector and typed on a phone. */
+export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+/** A random code; `random` returns uniform values in [0, 1) (injectable for tests). */
+export function mintJoinCode(random: () => number = secureRandom): string {
+  let code = ''
+  for (let i = 0; i < JOIN_CODE_LENGTH; i++) {
+    code += JOIN_CODE_ALPHABET[Math.floor(random() * JOIN_CODE_ALPHABET.length)]
+  }
+  return code
+}
+
+function secureRandom(): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32
+}

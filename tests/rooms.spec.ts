@@ -1,0 +1,156 @@
+/**
+ * Rooms and lobby (docs/features.md F3, M2). The two-account tests are the
+ * F3 "done when": two browsers see each other join and leave without a
+ * refresh, and a removed player can't get back in.
+ */
+
+import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import type { Page } from '@playwright/test'
+import { actionsAs, type CallAction } from './helpers/actions'
+
+const accounts = loadAllTestAccounts().length
+test.skip(accounts < 1, 'Needs a test account: npx deepspace test accounts create …')
+
+const QUESTION = {
+  prompt: 'Which gas do plants release?',
+  options: ['Oxygen', 'Nitrogen', 'Carbon dioxide', 'Helium'],
+  correctIndex: 0,
+}
+
+/** A quiz with one approved question, and a room for it. */
+async function openRoom(call: CallAction) {
+  const { data: quiz } = await call<{ quizId: string }>('createQuiz', { title: 'Lobby test' })
+  await call('addQuestion', { quizId: quiz!.quizId, ...QUESTION })
+  const room = await call<{ roomId: string; code: string }>('createRoom', { quizId: quiz!.quizId })
+  expect(room).toMatchObject({ success: true })
+  return { quizId: quiz!.quizId, ...room.data! }
+}
+
+const lobbyPlayer = (page: Page, name?: string) =>
+  name ? page.getByTestId('lobby-player').filter({ hasText: name }) : page.getByTestId('lobby-player')
+
+test('host opens a room and gets a readable code', async ({ users }) => {
+  const [host] = await users(1)
+  const call = await actionsAs(host.page)
+  const { roomId, code, quizId } = await openRoom(call)
+  expect(code).toMatch(/^[A-HJKMNP-Z2-9]{6}$/)
+
+  // Joining your own room is not playing in it.
+  expect(await call('joinRoom', { code: code.toLowerCase() })).toMatchObject({
+    success: true,
+    data: { roomId, role: 'host' },
+  })
+
+  await host.page.goto(`/rooms/${roomId}`)
+  await expect(host.page.getByTestId('room-code')).toHaveText(code, { timeout: 15_000 })
+  await expect(host.page.getByTestId('player-count')).toHaveText('0 / 50 players')
+
+  // Questions are frozen while the room is open (renaming is still fine).
+  expect(await call('addQuestion', { quizId, ...QUESTION })).toMatchObject({
+    success: false,
+    code: 'quiz_in_play',
+  })
+})
+
+test('ending a game closes the code and unfreezes the quiz', async ({ users }) => {
+  const [host] = await users(1)
+  const call = await actionsAs(host.page)
+  const { roomId, code, quizId } = await openRoom(call)
+
+  await host.page.goto(`/quizzes/${quizId}`)
+  await expect(host.page.getByRole('link', { name: new RegExp(code) })).toBeVisible({ timeout: 15_000 })
+
+  await host.page.goto(`/rooms/${roomId}`)
+  await host.page.getByRole('button', { name: 'End game' }).click({ timeout: 15_000 })
+  await host.page.getByRole('dialog').getByRole('button', { name: 'End game' }).click()
+  await expect(host.page).toHaveURL(new RegExp(`/quizzes/${quizId}$`))
+  await expect(host.page.getByRole('link', { name: new RegExp(code) })).toHaveCount(0)
+
+  expect(await call('endRoom', { roomId })).toMatchObject({ success: false, code: 'room_closed' })
+  expect(await call('addQuestion', { quizId, ...QUESTION })).toMatchObject({ success: true })
+  expect(await call('deleteQuiz', { quizId })).toMatchObject({ success: true })
+})
+
+test('a room needs an approved question, and codes must be real', async ({ users }) => {
+  const [host] = await users(1)
+  const call = await actionsAs(host.page)
+  const { data } = await call<{ quizId: string }>('createQuiz', { title: 'Empty' })
+  expect(await call('createRoom', { quizId: data!.quizId })).toMatchObject({
+    success: false,
+    code: 'no_approved_questions',
+  })
+  expect(await call('joinRoom', { code: 'nope' })).toMatchObject({ success: false, code: 'invalid_code' })
+  expect(await call('joinRoom', { code: 'ZZZZZZ' })).toMatchObject({ success: false, code: 'not_found' })
+  await call('deleteQuiz', { quizId: data!.quizId })
+})
+
+test.describe('two accounts', () => {
+  test.skip(accounts < 2, 'Needs 2 test accounts')
+
+  test('players appear live, show offline when they leave, and a removed player stays out', async ({
+    users,
+  }) => {
+    const [host, player] = await users(2)
+    const asHost = await actionsAs(host.page)
+    const asPlayer = await actionsAs(player.page)
+    const { roomId, code, quizId } = await openRoom(asHost)
+
+    await host.page.goto(`/rooms/${roomId}`)
+    await expect(host.page.getByTestId('room-code')).toHaveText(code, { timeout: 15_000 })
+
+    // The share link joins and lands in the lobby.
+    await player.page.goto(`/join/${code}`)
+    await expect(player.page).toHaveURL(new RegExp(`/rooms/${roomId}$`), { timeout: 15_000 })
+    await expect(player.page.getByText(/You’re in/)).toBeVisible()
+
+    // The host sees them arrive, online, without a refresh.
+    await expect(lobbyPlayer(host.page)).toHaveCount(1, { timeout: 10_000 })
+    await expect(lobbyPlayer(host.page)).toHaveAttribute('data-online', 'true', { timeout: 10_000 })
+    await expect(host.page.getByTestId('player-count')).toHaveText('1 / 50 players')
+
+    // Joining again is idempotent.
+    expect(await asPlayer('joinRoom', { code })).toMatchObject({ success: true, data: { roomId, role: 'player' } })
+    await expect(lobbyPlayer(host.page)).toHaveCount(1)
+
+    // Leaving: still in the room, shown offline.
+    await player.page.goto('/home')
+    await expect(lobbyPlayer(host.page)).toHaveAttribute('data-online', 'false', { timeout: 15_000 })
+
+    // Host-only controls are refused for the player.
+    const playerId = player.userId
+    expect(await asPlayer('createRoom', { quizId })).toMatchObject({ success: false, code: 'forbidden' })
+
+    // Remove → gone from the lobby, and the player can't come back.
+    await player.page.goto(`/rooms/${roomId}`)
+    await host.page.getByRole('button', { name: /^Options for / }).click()
+    await host.page.getByRole('menuitem', { name: 'Remove from game' }).click()
+    await host.page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await expect(lobbyPlayer(host.page)).toHaveCount(0, { timeout: 10_000 })
+    await expect(player.page.getByText('You were removed from this game')).toBeVisible({ timeout: 10_000 })
+    expect(await asPlayer('joinRoom', { code })).toMatchObject({ success: false, code: 'removed' })
+    if (playerId) {
+      expect(await asPlayer('removePlayer', { roomId, userId: playerId })).toMatchObject({
+        success: false,
+        code: 'forbidden',
+      })
+    }
+  })
+
+  test('the host can promote a lobby player to co-host', async ({ users }) => {
+    const [host, player] = await users(2)
+    const asHost = await actionsAs(host.page)
+    const asPlayer = await actionsAs(player.page)
+    const { roomId, code } = await openRoom(asHost)
+
+    await asPlayer('joinRoom', { code })
+    await host.page.goto(`/rooms/${roomId}`)
+    await host.page.getByRole('button', { name: /^Options for / }).click({ timeout: 15_000 })
+    await host.page.getByRole('menuitem', { name: 'Make co-host' }).click()
+    await expect(lobbyPlayer(host.page)).toHaveCount(0, { timeout: 10_000 })
+    await expect(host.page.getByRole('heading', { name: 'Co-hosts' })).toBeVisible()
+
+    expect(await asPlayer('joinRoom', { code })).toMatchObject({ success: true, data: { role: 'host' } })
+    await player.page.goto(`/rooms/${roomId}`)
+    await expect(player.page.getByText('You’re a co-host')).toBeVisible({ timeout: 15_000 })
+  })
+})

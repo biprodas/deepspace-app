@@ -15,6 +15,7 @@ import {
   ActionError,
   defineAction,
   getRecord,
+  isClosed,
   queryRecords,
   recordId,
   requireQuizOwner,
@@ -50,7 +51,7 @@ function listQuestions(tools: ActionTools, quizId: string) {
 /** Edits would change answers mid-game, so a quiz in a running room is frozen. */
 async function requireNoLiveRoom(tools: ActionTools, quizId: string) {
   const rooms = await queryRecords<Room>(tools, 'rooms', { quizId })
-  if (rooms.some((r) => r.data.status !== 'final' && r.data.status !== 'cancelled')) {
+  if (rooms.some((r) => !isClosed(r.data))) {
     throw new ActionError('This quiz is being played right now; edit it after the game', 'quiz_in_play')
   }
 }

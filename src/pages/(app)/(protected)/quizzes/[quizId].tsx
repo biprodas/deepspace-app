@@ -1,0 +1,307 @@
+/**
+ * Quiz editor: /quizzes/:quizId (docs/features.md F2). The owner writes,
+ * edits, approves, reorders and deletes questions. Reads are live
+ * (`useQuery`); every write goes through a quiz server action.
+ *
+ * `answer_keys` is owner-readable only, so for anyone else this page can't
+ * show answers, and it says so instead of offering controls that would be
+ * refused.
+ */
+
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useQuery, useUser } from 'deepspace'
+import { ArrowLeft, CheckCheck, ListChecks, Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { Badge, Button, ConfirmModal, EmptyState, Input } from '@/components/ui'
+import { GenerationBanner } from '@/components/quiz/GenerationBanner'
+import { QuestionCard } from '@/components/quiz/QuestionCard'
+import { QuestionForm, type QuestionValues } from '@/components/quiz/QuestionForm'
+import { useServerNow } from '@/lib/clock'
+import { isStaleRun } from '@/lib/generation'
+import { useAction } from '@/lib/use-action'
+import {
+  isClosedStatus,
+  type AnswerKey,
+  type Generation,
+  type Question,
+  type Quiz,
+  type Room,
+} from '@/schemas/game-types'
+
+export default function QuizEditorPage() {
+  const { quizId = '' } = useParams()
+  const { user } = useUser()
+  const navigate = useNavigate()
+  const { run, pending } = useAction()
+
+  const quizzes = useQuery<Quiz>('quizzes', { where: { recordId: quizId }, limit: 1 })
+  const questions = useQuery<Question>('questions', {
+    where: { quizId },
+    orderBy: 'order',
+    orderDir: 'asc',
+  })
+  const answerKeys = useQuery<AnswerKey>('answer_keys', { where: { quizId } })
+  const rooms = useQuery<Room>('rooms', { where: { quizId }, orderBy: 'createdAt', orderDir: 'asc' })
+  const openRooms = rooms.records.filter((r) => !isClosedStatus(r.data.status))
+  // Owner-only rows: the quiz's AI runs (the full draft and any regenerations).
+  const generations = useQuery<Generation>('generations', { where: { quizId } })
+  const unfinished = generations.records.filter((g) => g.data.status === 'pending' || g.data.status === 'running')
+  const now = useServerNow(5_000, unfinished.length > 0)
+  // Regenerations still alive (a run whose job died stops counting).
+  const replacing = new Set(
+    unfinished
+      .filter((g) => g.data.replaceQuestionId && !isStaleRun(g.data, Date.parse(g.createdAt), now))
+      .map((g) => g.data.replaceQuestionId),
+  )
+
+  const keysByQuestion = useMemo(
+    () => new Map(answerKeys.records.map((k) => [k.data.questionId, k.data])),
+    [answerKeys.records],
+  )
+
+  const quiz = quizzes.records[0]
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  if (quizzes.status === 'loading') {
+    return <div className="p-10 text-center text-sm text-muted-foreground">Loading quiz…</div>
+  }
+  if (!quiz) {
+    return (
+      <EmptyState
+        icon={<ListChecks />}
+        title="Quiz not found"
+        description="It may have been deleted."
+        action={{ label: 'Back to my quizzes', onClick: () => navigate('/quizzes') }}
+      />
+    )
+  }
+
+  const isOwner = user?.id === quiz.data.ownerId
+  const approvedCount = questions.records.filter((q) => q.data.approved).length
+  const drafts = questions.records.filter((q) => !q.data.approved)
+  const fromSource = quiz.data.sourceType !== 'manual'
+  const mainRun = generations.records.find((g) => g.recordId === quiz.data.generationId)
+  const showRun = mainRun && (mainRun.data.status !== 'completed' || drafts.length > 0)
+
+  async function approveAll() {
+    for (const q of drafts) {
+      const result = await run('updateQuestion', { questionId: q.recordId, approved: true }, 'approveAll')
+      if (!result.success) break
+    }
+  }
+
+  const saveQuestion = (questionId: string) => async (values: QuestionValues) =>
+    (await run('updateQuestion', { questionId, ...values }, `save:${questionId}`)).success
+
+  const addQuestion = async (values: QuestionValues) =>
+    (await run('addQuestion', { quizId, ...values })).success
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 pb-24 pt-8 sm:px-6">
+      <Link
+        to="/quizzes"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" /> My quizzes
+      </Link>
+
+      <header className="mb-8 flex flex-col items-start gap-2 sm:flex-row sm:gap-4">
+        <div className="w-full min-w-0 flex-1">
+          {isOwner ? (
+            <TitleEditor
+              title={quiz.data.title}
+              saving={pending === 'renameQuiz'}
+              onSave={async (title) => (await run('renameQuiz', { quizId, title })).success}
+            />
+          ) : (
+            <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">{quiz.data.title}</h1>
+          )}
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              {questions.records.length} question{questions.records.length === 1 ? '' : 's'}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span data-testid="approved-count">{approvedCount} approved</span>
+            {approvedCount === 0 && questions.records.length > 0 && (
+              <Badge variant="warning" size="sm">Approve at least one to play</Badge>
+            )}
+          </p>
+        </div>
+        {isOwner && (
+          <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+            <Button
+              disabled={approvedCount === 0 && openRooms.length === 0}
+              loading={pending === 'createRoom'}
+              onClick={async () => {
+                // Returns the open game if there is one, so a second click never splits players.
+                const result = await run<{ roomId: string }>('createRoom', { quizId })
+                if (result.success) navigate(`/rooms/${result.data.roomId}`)
+              }}
+            >
+              <Play /> {openRooms.length > 0 ? `Back to your game · ${openRooms[0].data.code}` : 'Host a game'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 /> Delete quiz
+            </Button>
+          </div>
+        )}
+      </header>
+
+      {isOwner && openRooms.length > 0 && (
+        <section
+          aria-labelledby="open-games"
+          className="mb-6 rounded-xl border border-primary/40 bg-primary/5 p-4"
+        >
+          <h2 id="open-games" className="text-sm font-semibold">
+            Open game{openRooms.length === 1 ? '' : 's'}
+          </h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Questions can’t change while a game is open. End it from its lobby to edit again.
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {openRooms.map((r) => (
+              <li key={r.recordId}>
+                <Link
+                  to={`/rooms/${r.recordId}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+                >
+                  <span className="font-mono font-bold tracking-[0.15em]">{r.data.code}</span>
+                  <span className="text-muted-foreground">{r.data.status}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {!isOwner ? (
+        <p className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
+          Only the quiz owner can see the answers and edit this quiz.
+        </p>
+      ) : (
+        <>
+          {showRun && (
+            <div className="mb-6">
+              <GenerationBanner generation={mainRun.data} createdAt={mainRun.createdAt} />
+            </div>
+          )}
+          {drafts.length > 1 && (
+            <div className="mb-4 flex justify-end">
+              <Button variant="outline" size="sm" loading={pending === 'approveAll'} onClick={() => void approveAll()}>
+                <CheckCheck /> Approve all {drafts.length} drafts
+              </Button>
+            </div>
+          )}
+          <section aria-label="Questions" className="space-y-4">
+            {questions.records.map((q, i) => (
+              <QuestionCard
+                key={q.recordId}
+                number={i + 1}
+                questionId={q.recordId}
+                question={q.data}
+                answerKey={keysByQuestion.get(q.recordId)}
+                isFirst={i === 0}
+                isLast={i === questions.records.length - 1}
+                pending={pending}
+                onSave={saveQuestion(q.recordId)}
+                onApprove={(approved) =>
+                  void run('updateQuestion', { questionId: q.recordId, approved }, `approve:${q.recordId}`)
+                }
+                onMove={(direction) =>
+                  void run('moveQuestion', { questionId: q.recordId, direction }, `move:${q.recordId}`)
+                }
+                onDelete={async () => {
+                  await run('deleteQuestion', { questionId: q.recordId }, `delete:${q.recordId}`)
+                }}
+                onRegenerate={
+                  fromSource
+                    ? () => void run('regenerateQuestion', { questionId: q.recordId }, `regenerate:${q.recordId}`)
+                    : undefined
+                }
+                regenerating={replacing.has(q.recordId)}
+              />
+            ))}
+          </section>
+
+          <section className="mt-8 rounded-xl border border-border bg-card p-5" aria-labelledby="add-question">
+            <h2 id="add-question" className="mb-4 flex items-center gap-2 font-display text-lg font-bold">
+              <Plus className="size-5" /> Add a question
+            </h2>
+            <QuestionForm submitLabel="Add question" onSubmit={addQuestion} />
+          </section>
+        </>
+      )}
+
+      <ConfirmModal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="Delete this quiz?"
+        description="All its questions and answers are deleted. This can't be undone."
+        confirmText="Delete quiz"
+        loading={pending === 'deleteQuiz'}
+        onConfirm={async () => {
+          const result = await run('deleteQuiz', { quizId })
+          setConfirmDelete(false)
+          if (result.success) navigate('/quizzes', { replace: true })
+        }}
+      />
+    </div>
+  )
+}
+
+function TitleEditor({
+  title,
+  saving,
+  onSave,
+}: {
+  title: string
+  saving: boolean
+  onSave: (title: string) => Promise<boolean>
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  if (draft === null) {
+    return (
+      <h1 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+        <span className="min-w-0 break-words">{title}</span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 text-muted-foreground"
+          aria-label="Rename quiz"
+          onClick={() => setDraft(title)}
+        >
+          <Pencil />
+        </Button>
+      </h1>
+    )
+  }
+
+  return (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (draft.trim() === title || (await onSave(draft))) setDraft(null)
+      }}
+    >
+      <Input
+        aria-label="Quiz title"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        maxLength={120}
+        autoFocus
+        className="h-11 font-display text-xl font-bold"
+      />
+      <Button type="submit" loading={saving}>Save</Button>
+      <Button variant="ghost" onClick={() => setDraft(null)} disabled={saving}>
+        Cancel
+      </Button>
+    </form>
+  )
+}

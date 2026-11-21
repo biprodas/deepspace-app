@@ -225,13 +225,18 @@ HTTP response and broadcast progress.
 5. **Write** `questions` (unapproved) + `answer_keys`; set quiz `ready`
    (or `failed` with a reason). The host's review screen updates live.
 
-**To verify on Day 3:** how a job handler writes records into the RecordRoom
-(server-side records helper vs. a follow-up server action that reads
-`job.result`). Fallback if jobs are awkward: a synchronous server action that
-generates in batches of 5.
+**Job → records (resolved):** the job builds the same `tools` the actions
+use (`createActionTools` from `src/server/action-routes.ts`), acting as
+`job.enqueuedBy`. Both integrations are developer-billed, so no caller JWT
+is needed. Progress and errors go on the owner-only `generations` row,
+which the review screen reads live.
 
-**Cost guard:** `AppJobRoom.authorizeWrite` stays member-only; `createQuiz`
-caps 10 questions per call and N generations per user per day.
+**Cost guard:** browsers can't touch the job queue at all
+(`AppJobRoom` `authorizeRead`/`authorizeWrite` return false; only server
+code enqueues). The job trusts only a `generationId` and runs it once, only
+if that row is `pending` and belongs to whoever enqueued it
+(`maxAttempts: 1`, no auto-retry). `createQuiz` caps 5–10 questions per
+call, one run at a time per user, and 10 runs per user per rolling 24 h.
 
 ---
 
@@ -254,6 +259,8 @@ caps 10 questions per call and N generations per user per day.
 ---
 
 ## 10. Code layout
+
+Build order and milestones: [implementation-plan.md](./implementation-plan.md).
 
 ```
 src/

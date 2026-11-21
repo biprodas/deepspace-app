@@ -145,7 +145,9 @@ Build these end to end before anything in section 2.
   Co-hosts can't answer.
 - **F10. Game history:** past games and results on each user's profile; host
   sees per-question accuracy and the hardest questions.
-- **F11. All-time leaderboard** via `npx deepspace add leaderboard`.
+- **F11. All-time leaderboard**, kept by the server from final standings
+  (not `npx deepspace add leaderboard`, which lets users submit scores;
+  see implementation-plan.md M6).
 
 ## 3. Deliberately left out (explain in the write-up)
 

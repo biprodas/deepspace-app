@@ -7,6 +7,8 @@ The real definitions are DeepSpace `CollectionSchema` files in
 Every record also gets `recordId`, `createdBy`, `createdAt` and `updatedAt`
 automatically; they're listed once, on `Quiz`. `User` is DeepSpace's
 built-in users collection. Permissions are in [trd.md §4](./trd.md#4-data-model).
+`DateTime` fields on game collections are stored as epoch milliseconds
+(`number` columns), so deadline arithmetic needs no parsing.
 
 **Rule that shapes this schema:** DeepSpace permissions are per record, not
 per field. Anything a player must not see yet (correct answer, explanation)
@@ -16,6 +18,7 @@ lives in a record they can't read, or stays empty until the server fills it.
 // ─── Enums ──────────────────────────────────────────────
 
 enum SourceType {
+  manual    // hand-written questions, no AI run
   wikipedia
   notes
 }
@@ -111,10 +114,16 @@ model Generation {
   quizId        String
   jobId         String?          // JobRoom job
   sourceType    SourceType
+  topics        Json?            // string[]: Wikipedia topics as typed
+  notes         String?          // pasted notes (owner-only, like the row)
+  difficulty    Difficulty
   questionCount Int              // requested
+  replaceQuestionId String?      // set when regenerating one question
   model         String           // e.g. claude-sonnet-5-5
   promptVersion String           // e.g. "v1"
   status        GenerationStatus
+  stage         String?          // fetching | writing | saving (progress line)
+  heartbeatAt   DateTime?        // stamped every 15 s by the live job
   droppedCount  Int              @default(0) // invalid questions dropped
   inputTokens   Int?             // if the integration returns usage
   outputTokens  Int?
@@ -147,6 +156,7 @@ model Round {
   status       RoundStatus
   startedAt    DateTime
   deadline     DateTime
+  timeLimitMs  Int         // copied from the question; pauses move deadline, not this
   remainingMs  Int?        // set while the room is paused
   revealedAt   DateTime?
   // reveal fields (null until reveal)
@@ -197,6 +207,18 @@ model Standing {
   rank         Int
 
   @@unique([roomId, userId])
+}
+
+/// All-time totals over finished games, written by the server at game end.
+model LeaderboardEntry {
+  recordId       String @id
+  userId         String @unique
+  displayName    String
+  totalScore     Int
+  games          Int
+  wins           Int
+  correctAnswers Int
+  roomIds        Json   // string[]: rooms already counted (idempotent)
 }
 ```
 

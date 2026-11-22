@@ -123,6 +123,13 @@ export function isDuplicate(result: ActionResult<unknown>): boolean {
   return !result.success && /duplicate/i.test(result.error)
 }
 
+/** A user's profile name, trimmed to fit a player chip, or `fallback`. */
+export async function displayName(tools: ActionTools, userId: string, fallback = 'Player'): Promise<string> {
+  const result = await tools.get('users', userId)
+  const name = result.success ? (result.data.record.data as { name?: unknown }).name : undefined
+  return typeof name === 'string' && name.trim() ? name.trim().slice(0, 60) : fallback
+}
+
 // ─── Caller checks ───────────────────────────────────────
 
 export function requireQuizOwner(quiz: Rec<Quiz>, userId: string): void {

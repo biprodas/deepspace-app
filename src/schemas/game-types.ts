@@ -10,6 +10,7 @@ export const GENERATION_STATUSES = ['pending', 'running', 'completed', 'failed']
 export const GENERATION_STAGES = ['fetching', 'writing', 'saving'] as const
 export const ROOM_STATUSES = ['lobby', 'question', 'reveal', 'paused', 'final', 'cancelled'] as const
 export const ROUND_STATUSES = ['active', 'revealed', 'skipped'] as const
+export const INVITE_STATUSES = ['pending', 'accepted', 'dismissed'] as const
 
 export type SourceType = (typeof SOURCE_TYPES)[number]
 export type Difficulty = (typeof DIFFICULTIES)[number]
@@ -18,6 +19,7 @@ export type GenerationStatus = (typeof GENERATION_STATUSES)[number]
 export type GenerationStage = (typeof GENERATION_STAGES)[number]
 export type RoomStatus = (typeof ROOM_STATUSES)[number]
 export type RoundStatus = (typeof ROUND_STATUSES)[number]
+export type InviteStatus = (typeof INVITE_STATUSES)[number]
 
 /** A finished or ended game: nothing can change any more. */
 export const isClosedStatus = (status: RoomStatus) => status === 'final' || status === 'cancelled'
@@ -114,6 +116,29 @@ export interface RoomPlayer {
   removed: boolean
   joinedAt: number
   firstRoundNumber: number
+}
+
+/**
+ * A host's invitation to one person, by account or email. Readable only by
+ * the invitee (matched by account); an email-only invite is delivered by
+ * email alone. Host name, quiz title and code are copied in so the invite
+ * card needs no further reads.
+ */
+export interface RoomInvite {
+  roomId: string
+  code: string
+  quizTitle: string
+  invitedBy: string
+  inviterName: string
+  /** Who, once per room: the lower-cased email, or `user:<id>` for an account without one. */
+  key: string
+  /** Lower-cased; where the invite email went. */
+  email?: string
+  /** The invitee's account, when picked or when the email belongs to one. */
+  inviteeId?: string
+  status: InviteStatus
+  invitedAt: number
+  emailSent: boolean
 }
 
 export interface Answer {

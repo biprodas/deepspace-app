@@ -5,7 +5,7 @@
  */
 
 import type { CollectionSchema } from 'deepspace/schema'
-import { ROOM_STATUSES, ROUND_STATUSES } from './game-types'
+import { INVITE_STATUSES, ROOM_STATUSES, ROUND_STATUSES } from './game-types'
 import { bool, json, num, select, serverWritten, text, time } from './schema-helpers'
 
 export const roomsSchema: CollectionSchema = {
@@ -62,6 +62,30 @@ export const roomPlayersSchema: CollectionSchema = {
   ],
   uniqueOn: ['roomId', 'userId'],
   permissions: serverWritten(true),
+}
+
+/**
+ * Invitations by account or email. Only the invitee reads theirs (by
+ * `inviteeId`), so the host's address book never leaks to other players.
+ */
+export const roomInvitesSchema: CollectionSchema = {
+  name: 'room_invites',
+  columns: [
+    text('roomId', { required: true, immutable: true }),
+    text('code', { required: true, immutable: true }),
+    text('quizTitle', { required: true }),
+    text('invitedBy', { required: true, immutable: true }),
+    text('inviterName', { required: true }),
+    text('key', { required: true, immutable: true }),
+    text('email', { immutable: true }),
+    text('inviteeId'),
+    select('status', INVITE_STATUSES, { required: true }),
+    time('invitedAt', { required: true }),
+    bool('emailSent', { default: false }),
+  ],
+  uniqueOn: ['roomId', 'key'],
+  ownerField: 'inviteeId',
+  permissions: serverWritten('own'),
 }
 
 /** Players read only their own answers; the distribution is published on the round. */

@@ -2,12 +2,14 @@ import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { adminActions } from './admin'
 import { gameActions } from './game'
+import { inviteActions } from './invite'
 import { quizActions } from './quiz'
 import { roomActions } from './room'
 
 const registry = {
   ...quizActions,
   ...roomActions,
+  ...inviteActions,
   ...gameActions,
   ...adminActions,
 }

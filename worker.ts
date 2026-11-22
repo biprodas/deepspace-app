@@ -109,6 +109,8 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   /** Comma-separated exact Expo/native callback URIs (for example, myapp://auth/callback). */
   NATIVE_AUTH_REDIRECT_URIS?: string
   APP_NAME: string
+  /** Public origin for links in emails, e.g. invite emails. */
+  APP_URL?: string
   /** Immutable record-scope and platform identity. */
   DEEPSPACE_APP_ID: string
   OWNER_USER_ID: string

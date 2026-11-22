@@ -83,8 +83,16 @@ test('a live room hides the app navigation behind a slim bar, and gives it back 
   await expect(page).toHaveTitle(`Lobby ${code} · StudyArena`)
   await expect(page.getByTestId('app-navigation')).toHaveCount(0)
 
-  // Leaving the room restores the normal chrome.
-  await page.getByTestId('focus-bar').getByRole('link', { name: /Exit to quiz/ }).click()
+  // Leaving asks first; "Stay" keeps the room.
+  const exit = page.getByTestId('focus-bar').getByRole('link', { name: /Exit to quiz/ })
+  await exit.click()
+  await page.getByRole('button', { name: 'Stay' }).click()
+  await expect(page).toHaveURL(new RegExp(`/rooms/${roomId}$`))
+  await expect(page.getByTestId('focus-bar')).toBeVisible()
+
+  // Confirming leaves, and the normal chrome comes back.
+  await exit.click()
+  await page.getByRole('button', { name: 'Leave' }).click()
   await expect(page).toHaveURL(new RegExp(`/quizzes/${quizId}$`))
   await expect(page.getByTestId('app-navigation')).toBeVisible()
 

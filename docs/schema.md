@@ -181,6 +181,25 @@ model RoomPlayer {
   @@unique([roomId, userId])
 }
 
+/// A host's invite to one person, by account or email. Only the invitee
+/// (by account) reads it; email-only invites are delivered by email.
+model RoomInvite {
+  recordId    String   @id
+  roomId      String   // Room.recordId
+  code        String   // copied from Room
+  quizTitle   String   // copied from Quiz
+  invitedBy   String   // User.id (host or co-host)
+  inviterName String
+  key         String   // lower-cased email, or "user:<id>" when the account has none
+  email       String?
+  inviteeId   String?  // User.id; read: 'own'
+  status      String   // pending | accepted | dismissed
+  invitedAt   DateTime
+  emailSent   Boolean  @default(false)
+
+  @@unique([roomId, key])
+}
+
 /// Each player reads only their own rows.
 model Answer {
   recordId    String  @id
@@ -229,6 +248,7 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │         ├─< Generation
       │         └─< Room ─┬─< Round ─< Answer >── User
       │                   ├─< RoomPlayer >── User
+      │                   ├─< RoomInvite >── User (optional)
       │                   └─< Standing   >── User
 ```
 

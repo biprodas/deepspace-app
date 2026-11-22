@@ -8,6 +8,10 @@ export const GRACE_MS = 300
 
 export const MAX_PLAYERS = 50
 
+/** People one `invitePlayers` call may invite, and invites per room (email credit guard). */
+export const MAX_INVITES_PER_CALL = 10
+export const MAX_INVITES_PER_ROOM = 50
+
 /** Allowed question time limits, in seconds. */
 export const TIME_LIMITS = [10, 20, 30, 60] as const
 export type TimeLimit = (typeof TIME_LIMITS)[number]

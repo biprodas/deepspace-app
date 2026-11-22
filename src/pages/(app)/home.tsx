@@ -1,7 +1,7 @@
 /**
  * Home: /home. The way back into a game after closing the tab
- * (docs/features.md F7): every open room you host or play in, live, plus a
- * code field and the way to your quizzes. Signed-out visitors get the code
+ * (docs/features.md F7): invites waiting for you and every open room you
+ * host or play in, live, plus a code field and the way to your quizzes. Signed-out visitors get the code
  * field and a sign-in prompt; all game pages themselves require sign-in.
  */
 
@@ -11,6 +11,7 @@ import { useAuthProfileReady, useQuery } from 'deepspace'
 import { ChevronRight, ListChecks, Plus, Radio } from 'lucide-react'
 import { Badge, buttonVariants, cn } from '@/components/ui'
 import { JoinCodeForm } from '@/components/landing/JoinCodeForm'
+import { InvitesCard } from '@/components/room/InvitesCard'
 import { signInPath } from '@/lib/auth-redirect'
 import { isClosedStatus, type Room, type RoomPlayer, type RoomStatus } from '@/schemas/game-types'
 
@@ -41,6 +42,7 @@ export default function HomePage() {
 
       {isSignedIn && userId ? (
         <>
+          <InvitesCard />
           <YourGames userId={userId} />
           <div className="grid gap-3 sm:grid-cols-2">
             <Link to="/quizzes/new" className={cn(buttonVariants(), 'h-12')}>

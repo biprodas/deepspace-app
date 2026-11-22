@@ -11,6 +11,7 @@ import { Check, Copy, Users, X } from 'lucide-react'
 import { Badge, Button, ConfirmModal } from '@/components/ui'
 import { joinPath } from '@/lib/join-code'
 import { MAX_PLAYERS } from '@/lib/game-rules'
+import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { useAction } from '@/lib/use-action'
 import type { RoomState } from '@/lib/use-room'
 import type { RoomPlayer } from '@/schemas/game-types'
@@ -151,7 +152,8 @@ export function HostLobby({ state }: { state: RoomState }) {
         onConfirm={async () => {
           const result = await run('endRoom', { roomId })
           setEnding(false)
-          if (result.success && quiz) navigate(`/quizzes/${quiz.recordId}`)
+          // Already confirmed here; don't ask again on the way out.
+          if (result.success && quiz) navigate(`/quizzes/${quiz.recordId}`, { state: LEAVE_CONFIRMED })
         }}
       />
 

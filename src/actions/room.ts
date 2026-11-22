@@ -9,9 +9,11 @@ import { z } from 'zod'
 import { MAX_PLAYERS } from '../lib/game-rules'
 import { mintJoinCode, parseJoinCode } from '../lib/join-code'
 import type { Question, Quiz, Room, RoomPlayer, Round } from '../schemas/game-types'
+import { acceptInvites } from './invite'
 import {
   ActionError,
   defineAction,
+  displayName,
   getRecord,
   isDuplicate,
   isClosed,
@@ -33,12 +35,6 @@ function requireOpen(room: Rec<Room>) {
 async function findPlayer(tools: ActionTools, roomId: string, userId: string) {
   const [player] = await queryRecords<RoomPlayer>(tools, 'room_players', { roomId, userId }, { limit: 1 })
   return player as Rec<RoomPlayer> | undefined
-}
-
-async function displayName(tools: ActionTools, userId: string): Promise<string> {
-  const result = await tools.get('users', userId)
-  const name = result.success ? (result.data.record.data as { name?: unknown }).name : undefined
-  return typeof name === 'string' && name.trim() ? name.trim().slice(0, 60) : 'Player'
 }
 
 /** Late joiners start at the round after the latest one (docs/features.md F7). */
@@ -132,6 +128,7 @@ const joinRoom = defineAction(z.object({ code: z.string().max(200) }), async ({ 
   const result = await tools.create('room_players', { ...player })
   // A double-click raced us to the same row: the first one counts.
   if (!isDuplicate(result)) unwrap(result)
+  await acceptInvites(tools, roomId, userId)
   return { roomId, role: 'player' as const }
 })
 

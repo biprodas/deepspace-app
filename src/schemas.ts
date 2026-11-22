@@ -19,6 +19,7 @@ import {
 import {
   answersSchema,
   leaderboardSchema,
+  roomInvitesSchema,
   roomPlayersSchema,
   roomsSchema,
   roundsSchema,
@@ -35,6 +36,7 @@ export const schemas: CollectionSchema[] = [
   roomsSchema,
   roundsSchema,
   roomPlayersSchema,
+  roomInvitesSchema,
   answersSchema,
   standingsSchema,
   leaderboardSchema,

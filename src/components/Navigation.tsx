@@ -1,7 +1,7 @@
 /**
  * Top nav — minimal placeholder bar wired to the app's mechanisms:
- * nav.ts-driven links (with role/dev filtering), a sign-in link to /sign-in,
- * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
+ * nav.ts-driven links (with role/dev filtering; settings and admin pages go
+ * in the account menu), a sign-in link to /sign-in, and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
  * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
  * — the shipped tests rely on them. `nav-user-email` is the one that carries
  * an identity the test can check exactly: a display name is optional, the
@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
+import { ChevronDown, Database, LogOut, Menu, Settings, X, type LucideIcon } from 'lucide-react'
 import { Logo } from './landing/bits'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -29,6 +29,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui'
+
+/** Icons for account-menu links, by path. */
+const ACCOUNT_ICONS: Record<string, LucideIcon> = {
+  '/settings': Settings,
+  '/admin/data': Database,
+}
 
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
@@ -50,6 +56,10 @@ export default function Navigation() {
     if (userRole === 'admin') return true
     return item.roles.includes(userRole as Role)
   })
+
+  // Everyday pages sit in the top bar; settings and admin pages in the account menu.
+  const mainNav = visibleNav.filter((item) => item.placement !== 'account')
+  const accountNav = visibleNav.filter((item) => item.placement === 'account')
 
   const navLink = (item: (typeof nav)[number]) => {
     const active = location.pathname.startsWith(item.path)
@@ -84,7 +94,7 @@ export default function Navigation() {
               <Logo />
             </Link>
 
-            <div className="hidden items-baseline md:flex">{visibleNav.map(navLink)}</div>
+            <div className="hidden items-baseline md:flex">{mainNav.map(navLink)}</div>
           </div>
 
           <div className="flex-1" />
@@ -138,6 +148,24 @@ export default function Navigation() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {accountNav.length > 0 && (
+                  <>
+                    {accountNav.map((item) => {
+                      const Icon = ACCOUNT_ICONS[item.path] ?? Settings
+                      return (
+                        <DropdownMenuItem
+                          key={item.path}
+                          data-testid={`nav-account-${item.label.toLowerCase()}`}
+                          render={<Link to={item.path} />}
+                        >
+                          <Icon aria-hidden />
+                          {item.label}
+                        </DropdownMenuItem>
+                      )
+                    })}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut aria-hidden />
                   Sign out
@@ -166,7 +194,7 @@ export default function Navigation() {
 
         {mobileMenuOpen && (
           <div className="flex flex-col border-t border-border px-2 py-2 md:hidden">
-            {visibleNav.map(navLink)}
+            {mainNav.map(navLink)}
           </div>
         )}
       </nav>

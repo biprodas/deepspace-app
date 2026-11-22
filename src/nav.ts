@@ -13,6 +13,11 @@ export interface NavItem {
   label: string
   roles?: Role[]
   devOnly?: boolean
+  /**
+   * Where the link lives: the top bar (default), or the account menu under
+   * the user's name, for pages people open now and then (settings, admin).
+   */
+  placement?: 'main' | 'account'
 }
 
 export const nav: NavItem[] = [
@@ -21,8 +26,8 @@ export const nav: NavItem[] = [
   { path: '/spaces', label: 'Spaces' },
   { path: '/history', label: 'History' },
   { path: '/leaderboard', label: 'Leaderboard' },
-  { path: '/admin/data', label: 'Data', roles: ['admin'] },
-  { path: '/settings', label: 'Settings' },
+  { path: '/settings', label: 'Settings', placement: 'account' },
+  { path: '/admin/data', label: 'Data', roles: ['admin'], placement: 'account' },
   // The /api-status debug page still exists — add
   // `{ path: '/api-status', label: 'API Status', devOnly: true }` to surface it.
   // ── Features add nav items below this line ──

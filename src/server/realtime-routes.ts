@@ -4,7 +4,8 @@
  * Caller identity in query parameters and headers is never trusted. Routes
  * scrub it and forward verified JWT identity in internal-only headers; the
  * documents-aware Yjs route additionally resolves an application role from
- * the documents collection (for study-space notes: from space membership).
+ * the documents collection (for study-space notes: from space membership),
+ * and the canvas route admits only a board's space members.
  */
 
 import type { Context, Hono } from 'hono'
@@ -143,6 +144,22 @@ async function resolveDocsYjsRole(
   return null
 }
 
+/** Editor for a board's space members (and the app owner); null for anyone else or any non-board id. */
+async function resolveBoardRole(env: Env, boardId: string, userId: string): Promise<'admin' | 'member' | null> {
+  if (userId === env.OWNER_USER_ID) return 'admin'
+  try {
+    const json = (await appRecordsTool(env, 'records.get', { collection: 'boards', recordId: boardId })) as {
+      success?: boolean
+      data?: { record?: { data?: { teamId?: string } } }
+    }
+    const teamId = json.success ? json.data?.record?.data?.teamId : undefined
+    if (!teamId) return null
+    return (await isActiveTeamMember(env, teamId, userId)) ? 'member' : null
+  } catch {
+    return null
+  }
+}
+
 export function registerRealtimeRoutes(app: Hono<AppContext>): void {
   app.get(
     '/ws/:roomId',
@@ -165,13 +182,21 @@ export function registerRealtimeRoutes(app: Hono<AppContext>): void {
     return stub.fetch(roomRequest)
   })
 
-  app.get(
-    '/ws/canvas/:docId',
-    wsRoute(
-      (env) => env.CANVAS_ROOMS,
-      async (auth, env) => ({ role: await resolveAppRole(env, auth.userId) }),
-    ),
-  )
+  // Canvas rooms are study-space boards (src/schemas/board-schemas.ts): only
+  // the space's active members get in, as editors. Any other id is refused,
+  // so a canvas can't be opened just by knowing or guessing its id.
+  app.get('/ws/canvas/:docId', async (c) => {
+    const docId = c.req.param('docId')
+    const token = new URL(c.req.url).searchParams.get('token')
+    const auth = token ? (await verifyJwt(jwtConfig(c.env), token)).result : null
+    if (!auth) return new Response('Unauthorized', { status: 401 })
+
+    const role = await resolveBoardRole(c.env, docId, auth.userId)
+    if (!role) return new Response('Forbidden', { status: 403 })
+
+    const stub = c.env.CANVAS_ROOMS.get(c.env.CANVAS_ROOMS.idFromName(docId))
+    return stub.fetch(authenticatedRoomRequest(c.req.raw, auth, { role }))
+  })
 
   app.get(
     '/ws/presence/:scopeId',

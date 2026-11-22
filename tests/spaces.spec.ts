@@ -5,18 +5,20 @@
  */
 
 import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { createTestSpace, deleteTestSpaces } from './helpers/spaces'
 import { actionsAs } from './helpers/actions'
 
 const accounts = loadAllTestAccounts().length
 test.skip(accounts < 2, 'Needs 2 test accounts (owner + member)')
 test.describe.configure({ timeout: 120_000 })
+test.afterEach(deleteTestSpaces)
 
 test('a non-member sees nothing; joining by link shows the space to both', async ({ users }) => {
   const [ownerUser, memberUser] = await users(2)
   const owner = await actionsAs(ownerUser.page)
   const member = await actionsAs(memberUser.page)
   const name = `Space ${Date.now()}`
-  const { data } = await owner<{ spaceId: string; code: string }>('createSpace', { name })
+  const data = await createTestSpace(owner, name)
   const { spaceId, code } = data!
 
   // Before joining, the server sends the member nothing about the space.
@@ -41,7 +43,7 @@ test('a removed member loses the space and cannot rejoin with the code', async (
   const [ownerUser, memberUser] = await users(2)
   const owner = await actionsAs(ownerUser.page)
   const member = await actionsAs(memberUser.page)
-  const { data } = await owner<{ spaceId: string; code: string }>('createSpace', { name: 'Removal' })
+  const data = await createTestSpace(owner, 'Removal')
   const { spaceId, code } = data!
   expect(await member('joinSpace', { code })).toMatchObject({ success: true, data: { spaceId } })
 
@@ -62,7 +64,7 @@ test('a removed member loses the space and cannot rejoin with the code', async (
 test('a game hosted in a space shows on the space page', async ({ users }) => {
   const [ownerUser] = await users(1)
   const owner = await actionsAs(ownerUser.page)
-  const { data: space } = await owner<{ spaceId: string }>('createSpace', { name: 'Games' })
+  const space = await createTestSpace(owner, 'Games')
   const { data: quiz } = await owner<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Space quiz' })
   await owner('addQuestion', {
     quizId: quiz!.quizId,

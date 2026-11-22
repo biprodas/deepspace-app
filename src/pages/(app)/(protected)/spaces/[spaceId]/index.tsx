@@ -1,14 +1,14 @@
 /**
  * A study space: /spaces/:spaceId (docs/features.md F13). Name and code,
  * who's in it and who's online, games played here and a way to host one,
- * and the space's shared notes (?tab=notes).
+ * the space's shared notes (?tab=notes) and boards (?tab=boards).
  * Non-members get nothing from the server (the `'team'` rule), so they see
  * "not found" and the way to join.
  */
 
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Check, Copy, FileText, LayoutGrid, LogOut, MoreHorizontal, Pencil, SearchX, Trash2 } from 'lucide-react'
+import { Check, Copy, FileText, LayoutGrid, LogOut, MoreHorizontal, Pencil, PenTool, SearchX, Trash2 } from 'lucide-react'
 import {
   Button,
   ConfirmModal,
@@ -23,6 +23,7 @@ import {
   TabsTrigger,
 } from '@/components/ui'
 import { CreateSpaceModal } from '@/components/space/CreateSpaceModal'
+import { SpaceBoards } from '@/components/space/SpaceBoards'
 import { SpaceGames } from '@/components/space/SpaceGames'
 import { SpaceInviteButton } from '@/components/space/SpaceInviteButton'
 import { SpaceMembers } from '@/components/space/SpaceMembers'
@@ -40,7 +41,7 @@ export default function SpacePage() {
   const { run, pending } = useAction()
   const { copied, copy } = useCopy()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') === 'notes' ? 'notes' : 'overview'
+  const tab = (['notes', 'boards'] as const).find((t) => t === searchParams.get('tab')) ?? 'overview'
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null)
   usePageTitle(space?.data.name ?? 'Study space')
@@ -113,6 +114,9 @@ export default function SpacePage() {
           <TabsTrigger value="notes" data-testid="tab-notes">
             <FileText /> Notes
           </TabsTrigger>
+          <TabsTrigger value="boards" data-testid="tab-boards">
+            <PenTool /> Boards
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="overview">
           <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -122,6 +126,9 @@ export default function SpacePage() {
         </TabsContent>
         <TabsContent value="notes">
           <SpaceNotes state={state} />
+        </TabsContent>
+        <TabsContent value="boards">
+          <SpaceBoards state={state} />
         </TabsContent>
       </Tabs>
 

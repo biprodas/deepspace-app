@@ -181,6 +181,18 @@ Build these end to end before anything in section 2.
   that game's session note.
   **Done when:** two members see each other's typing, a member who leaves
   gets no note and no socket, and a pinned reveal shows in the session note.
+- **F15. Whiteboards and AI mind maps in a space:** members draw together on
+  a board (rectangles, ellipses, lines, text boxes; each other's cursors with
+  names), using DeepSpace's `canvas` feature. The canvas route admits only
+  the board's space members (it used to admit any signed-in user to any id).
+  An AI mind map starts from a Wikipedia topic: Claude drafts a root, 2–6
+  branches and up to 4 children each, the reply is checked and trimmed to
+  fit, quotes not in the article are dropped, and the generator's browser
+  lays it out radially and draws it once; then it's an ordinary board.
+  5 mind maps per user per day (credit guard). Lines don't follow nodes that
+  are moved, and drawing needs a mouse (no touch yet).
+  **Done when:** a member's shape appears for the other, a member who leaves
+  gets no board and no socket, and a generated map is drawn once.
 
 ## 3. Deliberately left out (explain in the write-up)
 
@@ -238,6 +250,10 @@ Key points:
 | `createNote` / `renameNote` | space member | Note row (its text is edited live over Yjs) / rename |
 | `deleteNote` | note's author or space owner | Delete a note |
 | `sessionNote` | space member | The session note for a game in a space, created on first use |
+| `createBoard` / `renameBoard` | space member | Whiteboard row (shapes are drawn live over the canvas route) / rename |
+| `createMindMap` | space member | Wikipedia topic → Claude → checked tree, stored on a new board (5 a day) |
+| `markMindMapDrawn` | the map's generator | Record that the map was drawn, so it isn't drawn twice |
+| `deleteBoard` | board's creator or space owner | Delete a board |
 
 Every host-only action checks the caller against the room on the server.
 

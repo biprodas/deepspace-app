@@ -105,7 +105,7 @@ type SearchHit = { title?: string }
  * Plain search misses misspellings ("Photosysthesis"); a fuzzy search
  * (`term~`) finds what they meant, which we offer rather than swap in.
  */
-async function resolveWikipediaTopics(tools: ActionTools, topics: string[]): Promise<string[]> {
+export async function resolveWikipediaTopics(tools: ActionTools, topics: string[]): Promise<string[]> {
   const search = async (query: string) => {
     const res = await tools.integration<SearchHit[]>('wikipedia/search-pages', { query, limit: 1 })
     if (!res.success) throw new ActionError(`Wikipedia search failed: ${res.error}`, 'wikipedia_unavailable')

@@ -22,6 +22,10 @@ export const MAX_INVITES_PER_SPACE = 100
 export const MAX_OWNED_SPACES = 20
 export const NOTE_TITLE_MAX = 80
 export const MAX_NOTES_PER_SPACE = 200
+export const BOARD_TITLE_MAX = 80
+export const MAX_BOARDS_PER_SPACE = 100
+/** AI mind maps one user may generate per rolling 24 hours (credit guard). */
+export const DAILY_MINDMAP_LIMIT = 5
 
 // ─── Polls ───────────────────────────────────────────────
 

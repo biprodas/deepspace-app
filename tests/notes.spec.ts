@@ -8,16 +8,18 @@
 
 import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
 import type { Page } from '@playwright/test'
+import { createTestSpace, deleteTestSpaces } from './helpers/spaces'
 import { actionsAs, type CallAction } from './helpers/actions'
 
 const accounts = loadAllTestAccounts().length
 test.skip(accounts < 2, 'Needs 2 test accounts (owner + member)')
 test.describe.configure({ timeout: 120_000 })
+test.afterEach(deleteTestSpaces)
 
 const GRACE_MS = 300
 
 async function spaceWithMember(owner: CallAction, member: CallAction, name: string) {
-  const { data } = await owner<{ spaceId: string; code: string }>('createSpace', { name })
+  const data = await createTestSpace(owner, name)
   await member('joinSpace', { code: data!.code })
   return data!
 }

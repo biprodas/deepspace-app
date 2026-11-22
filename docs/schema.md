@@ -291,6 +291,21 @@ model Note {           // collection: documents
   createdAt DateTime
 }
 
+/// A whiteboard or AI mind map in a space; shapes live in the canvas room
+/// named after recordId. read: 'team'.
+model Board {          // collection: boards
+  recordId     String   @id
+  title        String
+  kind         String   // whiteboard | mindmap
+  spaceId      String   // Space.recordId
+  teamId       String   // = spaceId
+  ownerId      String   // User.id (creator)
+  topic        String?  // mind map: the Wikipedia article
+  mindMap      Json?    // mind map: the generated tree (src/lib/mindmap.ts)
+  mindMapDrawn Boolean  @default(false)
+  createdAt    DateTime
+}
+
 /// Each player reads only their own rows.
 model Answer {
   recordId    String  @id
@@ -346,6 +361,7 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       └─< Space ─┬─< TeamMember >── User
                  ├─< SpaceInvite >── User (optional)
                  ├─< Note (documents; text in Yjs)
+                 ├─< Board (shapes in the canvas room)
                  └─< Room (optional spaceId)
 ```
 

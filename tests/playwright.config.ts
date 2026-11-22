@@ -22,6 +22,13 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   timeout: 30_000,
   retries: 0,
+  // One worker. The SDK caches each test account's sign-in in
+  // ~/.deepspace/playwright-states/, deduplicated only inside a worker, so
+  // parallel workers signing in the same account overwrite that file while
+  // another reads it ("Error reading storage state … Unexpected end of JSON
+  // input"). The suites also share the same few accounts, so running them in
+  // parallel could make their games interfere with each other.
+  workers: 1,
   use: {
     baseURL: BASE_URL,
     headless: true,

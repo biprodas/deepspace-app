@@ -306,6 +306,21 @@ model Board {          // collection: boards
   createdAt    DateTime
 }
 
+/// Admin audit log (F17). Server-written; read: admins only. Pruned after 90 days.
+model AuditEntry {     // collection: audit_log
+  recordId    String   @id
+  at          DateTime
+  actorId     String   // User.id
+  actorName   String
+  action      String   // e.g. space.member_removed, ai.mind_map, user.role_changed
+  category    String   // moderation | deletion | paid | admin | roles
+  targetType  String?
+  targetId    String?
+  targetLabel String?  // kept readable after the target is deleted
+  meta        Json?    // e.g. { count: 3 }, { from: 'member', to: 'admin' }
+  source      String   // server | verified | reported
+}
+
 /// Each player reads only their own rows.
 model Answer {
   recordId    String  @id

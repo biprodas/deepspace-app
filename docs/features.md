@@ -210,6 +210,18 @@ Build these end to end before anything in section 2.
   balance, with links to the dashboard) and Data (the JSON export). Numbers
   come from owner-only actions (`adminSummary`, `exportData`).
 
+- **F17. Audit log** (admin console → Audit log): who removed, deleted,
+  spent or changed what. Server actions append an entry after moderation
+  (space member or game player removed, co-host added or removed),
+  deletions (space, quiz, note, board), paid calls (AI quiz drafts, mind
+  maps, invite emails as one entry with a count) and the data export. Role
+  changes go through the platform, so the console reports them with
+  `logRoleChange` (admins only), which marks the entry *verified* when the
+  user already has the new role, else *reported by browser*. The
+  `audit_log` collection is server-written and admin-read; a daily cron task
+  deletes entries older than 90 days. Everyday activity (joining, answering,
+  editing) isn't logged.
+
 ## 3. Deliberately left out (explain in the write-up)
 
 | Left out | Why |

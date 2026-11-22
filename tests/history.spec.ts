@@ -88,9 +88,11 @@ test('only the app owner can export data', async ({ users }) => {
   // Test accounts are never the app owner.
   expect(await call('exportData')).toMatchObject({ success: false, code: 'forbidden' })
   // The admin console isn't shown to a non-admin at all (the action above is the real gate).
-  for (const path of ['/admin', '/admin/data', '/admin/usage']) {
+  for (const path of ['/admin', '/admin/data', '/admin/usage', '/admin/audit']) {
     await someone.page.goto(path)
     await expect(someone.page.getByText('Admins only')).toBeVisible({ timeout: 15_000 })
   }
   expect(await call('adminSummary')).toMatchObject({ success: false, code: 'forbidden' })
+  // Only admins may report role changes to the audit log.
+  expect(await call('logRoleChange', { userId: 'someone-else', to: 'admin' })).toMatchObject({ success: false, code: 'forbidden' })
 })

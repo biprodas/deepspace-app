@@ -2,7 +2,7 @@
  * Admin console, users: /admin/users (docs/features.md F16). Everyone who
  * has signed in to StudyArena, newest first, searchable, with their app role.
  * Admins change roles here (`useUsers().setRole`; the platform checks the
- * caller is an admin). Viewers are read-only; members play and host;
+ * caller is an admin) and recorded in the audit log. Viewers are read-only; members play and host;
  * admins also get this console.
  */
 
@@ -23,6 +23,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { AdminHeader, formatCount } from '@/components/admin/admin-ui'
+import { callAction } from '@/lib/actions-client'
 import { usePageTitle } from '@/lib/page-title'
 
 const ROLE_ORDER: Role[] = [ROLES.ADMIN, ROLES.MEMBER, ROLES.VIEWER]
@@ -35,7 +36,7 @@ export default function AdminUsersPage() {
   const { users, usersLoaded, setRole, refresh } = useUsers()
   const toast = useToast()
   const [query, setQuery] = useState('')
-  const [pending, setPending] = useState<{ id: string; name: string; role: Role } | null>(null)
+  const [pending, setPending] = useState<{ id: string; name: string; from: string; role: Role } | null>(null)
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -119,7 +120,7 @@ export default function AdminUsersPage() {
                       disabled={isMe}
                       onValueChange={(v) => {
                         const role = String(v) as Role
-                        if (role !== u.role) setPending({ id: u.id, name: u.name || u.email || 'this user', role })
+                        if (role !== u.role) setPending({ id: u.id, name: u.name || u.email || 'this user', from: u.role, role })
                       }}
                     >
                       <SelectTrigger aria-label={`Role for ${u.name || u.email}`} className="h-8" title={isMe ? 'You can’t change your own role' : undefined}>
@@ -158,6 +159,8 @@ export default function AdminUsersPage() {
         onConfirm={() => {
           if (!pending) return
           setRole(pending.id, pending.role)
+          // The platform made the change; record it in the audit log (the server verifies the role).
+          void callAction('logRoleChange', { userId: pending.id, from: pending.from, to: pending.role })
           toast.success(`${pending.name} is now ${ROLE_CONFIG[pending.role].title.toLowerCase()}`)
           setPending(null)
         }}

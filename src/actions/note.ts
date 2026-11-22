@@ -10,6 +10,7 @@ import type { Room } from '../schemas/game-types'
 import type { Note } from '../schemas/note-schemas'
 import type { Space } from '../schemas/space-types'
 import { ActionError, defineAction, getRecord, queryRecords, recordId, unwrap } from './shared'
+import { audit } from './audit'
 import { requireMember } from './space'
 
 const noteTitle = z.string().trim().min(1, 'Give the note a title').max(NOTE_TITLE_MAX)
@@ -58,6 +59,7 @@ const deleteNote = defineAction(z.object({ noteId: recordId }), async ({ userId,
     throw new ActionError('Only whoever wrote it or the space owner can delete a note', 'forbidden')
   }
   unwrap(await tools.remove('documents', p.noteId))
+  await audit(tools, userId, { action: 'note.deleted', targetType: 'note', targetId: p.noteId, targetLabel: note.data.title })
   return { noteId: p.noteId }
 })
 

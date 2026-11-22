@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { MAX_PLAYERS } from '../lib/game-rules'
 import { mintJoinCode, parseJoinCode } from '../lib/join-code'
 import type { Question, Quiz, Room, RoomPlayer, Round } from '../schemas/game-types'
+import { audit } from './audit'
 import { acceptInvites } from './invite'
 import { requireMember } from './space'
 import {
@@ -148,7 +149,16 @@ const removePlayer = defineAction(
     requireOpen(room)
     const player = await findPlayer(tools, p.roomId, p.userId)
     if (!player) throw new ActionError('That player isn’t in this game', 'not_found')
-    if (!player.data.removed) unwrap(await tools.update('room_players', player.recordId, { removed: true }))
+    if (!player.data.removed) {
+      unwrap(await tools.update('room_players', player.recordId, { removed: true }))
+      await audit(tools, userId, {
+        action: 'room.player_removed',
+        targetType: 'room',
+        targetId: p.roomId,
+        targetLabel: room.data.code,
+        meta: { player: player.data.displayName },
+      })
+    }
     return { roomId: p.roomId }
   },
 )
@@ -173,6 +183,13 @@ const addCoHost = defineAction(
     const coHostIds = [...new Set([...(room.data.coHostIds ?? []), p.userId])]
     unwrap(await tools.update('rooms', p.roomId, { coHostIds }))
     unwrap(await tools.remove('room_players', player.recordId))
+    await audit(tools, userId, {
+      action: 'room.cohost_added',
+      targetType: 'room',
+      targetId: p.roomId,
+      targetLabel: room.data.code,
+      meta: { member: player.data.displayName },
+    })
     return { roomId: p.roomId }
   },
 )
@@ -183,8 +200,16 @@ const removeCoHost = defineAction(
   async ({ userId, tools }, p) => {
     const room = await getRecord<Room>(tools, 'rooms', p.roomId, 'Room')
     requireHost(room, userId)
+    if (!(room.data.coHostIds ?? []).includes(p.userId)) return { roomId: p.roomId }
     const coHostIds = (room.data.coHostIds ?? []).filter((id) => id !== p.userId)
     unwrap(await tools.update('rooms', p.roomId, { coHostIds }))
+    await audit(tools, userId, {
+      action: 'room.cohost_removed',
+      targetType: 'room',
+      targetId: p.roomId,
+      targetLabel: room.data.code,
+      meta: { member: await displayName(tools, p.userId) },
+    })
     return { roomId: p.roomId }
   },
 )

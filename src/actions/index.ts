@@ -1,6 +1,7 @@
 import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { adminActions } from './admin'
+import { auditActions } from './audit'
 import { boardActions } from './board'
 import { gameActions } from './game'
 import { inviteActions } from './invite'
@@ -20,6 +21,7 @@ const registry = {
   ...boardActions,
   ...gameActions,
   ...adminActions,
+  ...auditActions,
 }
 
 export const actions: Record<string, ActionHandler<Env>> = registry

@@ -17,6 +17,7 @@ import {
 } from '../lib/game-rules'
 import { mintJoinCode, parseJoinCode, spaceJoinPath } from '../lib/join-code'
 import type { Space, SpaceInvite, TeamMember } from '../schemas/space-types'
+import { audit } from './audit'
 import { acceptInvites, deliverInvites, inviteTargetFields, resolveTargets, withTargetChecks } from './invite'
 import { ActionError, defineAction, displayName, getRecord, isDuplicate, queryRecords, recordId, unwrap, type Rec } from './shared'
 
@@ -112,6 +113,7 @@ const deleteSpace = defineAction(z.object({ spaceId: recordId }), async ({ userI
     unwrap(await tools.remove('boards', b.recordId))
   }
   unwrap(await tools.remove('spaces', p.spaceId))
+  await audit(tools, userId, { action: 'space.deleted', targetType: 'space', targetId: p.spaceId, targetLabel: space.data.name })
   return { spaceId: p.spaceId }
 })
 
@@ -168,6 +170,13 @@ const removeMember = defineAction(
     if (!member) throw new ActionError('That person isn’t in this space', 'not_found')
     if (member.data.status !== 'removed') {
       unwrap(await tools.update('team_members', member.recordId, { status: 'removed' }))
+      await audit(tools, userId, {
+        action: 'space.member_removed',
+        targetType: 'space',
+        targetId: p.spaceId,
+        targetLabel: space.data.name,
+        meta: { member: member.data.displayName },
+      })
     }
     return { spaceId: p.spaceId }
   },

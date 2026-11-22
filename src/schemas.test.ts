@@ -22,6 +22,7 @@ const GAME_COLLECTIONS = [
   'space_invites',
   'documents',
   'boards',
+  'audit_log',
 ]
 const byName = new Map(schemas.map((s) => [s.name, s]))
 
@@ -71,6 +72,14 @@ describe('schemas', () => {
       expect(schema.permissions[role].read).not.toBe(true)
     }
     expect(schema.permissions.member.read).toBe('team')
+  })
+
+  // Members never see who removed whom or what anyone spent; only admins read the log.
+  it('audit_log is readable by admins only', () => {
+    const p = byName.get('audit_log')!.permissions
+    expect(p.viewer.read).toBe(false)
+    expect(p.member.read).toBe(false)
+    expect(p.admin.read).toBe(true)
   })
 
   // The SDK resolves 'team' against this collection by name and these columns.

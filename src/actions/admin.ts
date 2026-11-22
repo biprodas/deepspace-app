@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import type { Generation } from '../schemas/game-types'
+import { audit } from './audit'
 import { ActionError, defineAction, queryRecords, type Rec } from './shared'
 
 export const EXPORT_COLLECTIONS = [
@@ -39,6 +40,7 @@ const exportData = defineAction(z.object({}), async ({ userId, tools, env }) => 
           }))
         : records
   }
+  await audit(tools, userId, { action: 'admin.data_exported' })
   return { exportedAt: new Date().toISOString(), limitPerCollection: PER_COLLECTION, collections }
 })
 

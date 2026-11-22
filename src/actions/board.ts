@@ -17,6 +17,7 @@ import type { Board } from '../schemas/board-schemas'
 import type { Space } from '../schemas/space-types'
 import { resolveWikipediaTopics } from './quiz'
 import { ActionError, defineAction, getRecord, queryRecords, recordId, unwrap } from './shared'
+import { audit } from './audit'
 import { requireMember } from './space'
 
 const MINDMAP_MAX_TOKENS = 2500
@@ -101,6 +102,7 @@ const createMindMap = defineAction(
       createdAt: Date.now(),
     }
     const { recordId: boardId } = unwrap(await tools.create('boards', { ...board }))
+    await audit(tools, userId, { action: 'ai.mind_map', targetType: 'board', targetId: boardId, targetLabel: title })
     return { boardId }
   },
 )
@@ -129,6 +131,7 @@ const deleteBoard = defineAction(z.object({ boardId: recordId }), async ({ userI
     throw new ActionError('Only whoever made it or the space owner can delete a board', 'forbidden')
   }
   unwrap(await tools.remove('boards', p.boardId))
+  await audit(tools, userId, { action: 'board.deleted', targetType: 'board', targetId: p.boardId, targetLabel: board.data.title })
   return { boardId: p.boardId }
 })
 

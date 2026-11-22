@@ -1,6 +1,6 @@
 /**
  * Admin console: /admin/* (docs/features.md F16). A sidebar of sections
- * (overview, users, API usage, credits, data) beside the section's page;
+ * (overview, users, API usage, credits, audit log, data) beside the section's page;
  * on phones the sidebar becomes a scrollable row of tabs.
  *
  * The UI shows only to app admins; every number it shows comes from
@@ -9,7 +9,7 @@
 
 import { NavLink, Outlet } from 'react-router-dom'
 import { useUser } from 'deepspace'
-import { BarChart3, Coins, Database, LayoutDashboard, ShieldAlert, Users, type LucideIcon } from 'lucide-react'
+import { BarChart3, Coins, Database, LayoutDashboard, ScrollText, ShieldAlert, Users, type LucideIcon } from 'lucide-react'
 import { EmptyState, cn } from '@/components/ui'
 
 interface Section {
@@ -25,6 +25,7 @@ const SECTIONS: Section[] = [
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/usage', label: 'API usage', icon: BarChart3 },
   { to: '/admin/credits', label: 'Credits', icon: Coins },
+  { to: '/admin/audit', label: 'Audit log', icon: ScrollText },
   { to: '/admin/data', label: 'Data', icon: Database },
 ]
 

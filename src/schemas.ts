@@ -31,6 +31,7 @@ import {
 import { spaceInvitesSchema, spacesSchema, teamMembersSchema } from './schemas/space-schemas'
 import { documentsSchema } from './schemas/note-schemas'
 import { boardsSchema } from './schemas/board-schemas'
+import { auditLogSchema } from './schemas/audit-schemas'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
@@ -54,4 +55,5 @@ export const schemas: CollectionSchema[] = [
   spaceInvitesSchema,
   documentsSchema,
   boardsSchema,
+  auditLogSchema,
 ]

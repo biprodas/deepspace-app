@@ -16,6 +16,7 @@ import { MAX_INVITES_PER_CALL, MAX_INVITES_PER_ROOM } from '../lib/game-rules'
 import { joinPath } from '../lib/join-code'
 import type { Quiz, Room, RoomInvite, RoomPlayer } from '../schemas/game-types'
 import type { SpaceInvite } from '../schemas/space-types'
+import { audit } from './audit'
 import {
   ActionError,
   defineAction,
@@ -205,6 +206,7 @@ interface Delivery {
 export async function deliverInvites(d: Delivery): Promise<{ label: string; outcome: InviteOutcome }[]> {
   const origin = linkOrigin(d.env, d.origin)
   const results: { label: string; outcome: InviteOutcome }[] = []
+  let emailsSent = 0
   for (const target of d.targets) {
     if (d.isIn(target.inviteeId)) {
       results.push({ label: target.label, outcome: 'already_in' })
@@ -228,11 +230,27 @@ export async function deliverInvites(d: Delivery): Promise<{ label: string; outc
         to: target.email,
         ...inviteEmail({ ...d.email, link: `${origin}${d.joinPath}` }),
       })
-      if (sent.success) unwrap(await d.tools.update(d.collection, inviteId, { emailSent: true }))
+      if (sent.success) {
+        unwrap(await d.tools.update(d.collection, inviteId, { emailSent: true }))
+        emailsSent += 1
+      }
       // An account holder still has the in-app invite; only email-only invites truly failed.
       else if (!target.inviteeId) outcome = 'email_failed'
     }
     results.push({ label: target.label, outcome })
+  }
+
+  // One audit entry per send, with the count: emails are billed per message.
+  if (emailsSent > 0) {
+    const isRoom = 'roomId' in d.row
+    await audit(d.tools, d.row.invitedBy, {
+      action: 'email.invites_sent',
+      actorName: d.row.inviterName,
+      targetType: isRoom ? 'room' : 'space',
+      targetId: 'roomId' in d.row ? d.row.roomId : d.row.spaceId,
+      targetLabel: 'quizTitle' in d.row ? d.row.quizTitle : d.row.spaceName,
+      meta: { count: emailsSent },
+    })
   }
   return results
 }

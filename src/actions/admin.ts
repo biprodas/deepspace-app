@@ -42,6 +42,109 @@ const exportData = defineAction(z.object({}), async ({ userId, tools, env }) => 
   return { exportedAt: new Date().toISOString(), limitPerCollection: PER_COLLECTION, collections }
 })
 
+// ─── Admin console (docs/features.md F16) ────────────────
+
+/** Rows counted per collection; the console shows "5000+" past this. */
+const COUNT_LIMIT = 5000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Owner-only, like exportData: the console's numbers include every user's activity. */
+function requireOwner(env: { OWNER_USER_ID?: string }, userId: string) {
+  if (!env.OWNER_USER_ID || userId !== env.OWNER_USER_ID) {
+    throw new ActionError('Only the app owner can open the admin console', 'forbidden')
+  }
+}
+
+interface UsageWindow {
+  generations: number
+  generationsFailed: number
+  inputTokens: number
+  outputTokens: number
+  mindMaps: number
+  emailsSent: number
+  /** Wikipedia lookups: one per Wikipedia-sourced generation topic and per mind map. */
+  wikipediaLookups: number
+}
+
+const emptyWindow = (): UsageWindow => ({
+  generations: 0,
+  generationsFailed: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  mindMaps: 0,
+  emailsSent: 0,
+  wikipediaLookups: 0,
+})
+
+/**
+ * What the console's Overview and API usage pages show: how much there is
+ * of everything, and the paid calls the app made, all time and in the last
+ * 30 days. Built from the app's own records (generation token counts, mind
+ * maps, sent invite emails), since the platform's billing ledger isn't
+ * readable from the app; the DeepSpace dashboard has the exact bill.
+ */
+const adminSummary = defineAction(z.object({}), async ({ userId, tools, env }) => {
+  requireOwner(env, userId)
+  const all = <T>(collection: string) =>
+    queryRecords<T>(tools, collection, {}, { orderBy: 'createdAt', orderDir: 'desc', limit: COUNT_LIMIT })
+
+  const [users, quizzes, rooms, spaces, notes, boards, generations, roomInvites, spaceInvites] = await Promise.all([
+    all('users'),
+    all('quizzes'),
+    all<{ status: string }>('rooms'),
+    all('spaces'),
+    all('documents'),
+    all<{ kind: string; createdAt: number }>('boards'),
+    all<Generation>('generations'),
+    all<{ emailSent?: boolean; invitedAt: number }>('room_invites'),
+    all<{ emailSent?: boolean; invitedAt: number }>('space_invites'),
+  ])
+
+  const since = Date.now() - 30 * DAY_MS
+  const usage = { allTime: emptyWindow(), last30Days: emptyWindow() }
+  const add = (at: number, f: (w: UsageWindow) => void) => {
+    f(usage.allTime)
+    if (at >= since) f(usage.last30Days)
+  }
+  for (const g of generations) {
+    add(Date.parse(g.createdAt), (w) => {
+      w.generations += 1
+      if (g.data.status === 'failed') w.generationsFailed += 1
+      w.inputTokens += g.data.inputTokens ?? 0
+      w.outputTokens += g.data.outputTokens ?? 0
+      if (g.data.sourceType === 'wikipedia') w.wikipediaLookups += g.data.topics?.length ?? 0
+    })
+  }
+  for (const b of boards) {
+    if (b.data.kind === 'mindmap') add(b.data.createdAt, (w) => ((w.mindMaps += 1), (w.wikipediaLookups += 1)))
+  }
+  for (const i of [...roomInvites, ...spaceInvites]) {
+    if (i.data.emailSent) add(i.data.invitedAt, (w) => (w.emailsSent += 1))
+  }
+
+  const count = (rows: unknown[]) => ({ count: rows.length, capped: rows.length >= COUNT_LIMIT })
+  return {
+    generatedAt: new Date().toISOString(),
+    counts: {
+      users: count(users),
+      quizzes: count(quizzes),
+      games: count(rooms),
+      liveGames: count(rooms.filter((r) => !['final', 'cancelled'].includes(r.data.status))),
+      spaces: count(spaces),
+      notes: count(notes),
+      boards: count(boards),
+    },
+    usage,
+  }
+})
+
+export type AdminSummary = {
+  generatedAt: string
+  counts: Record<'users' | 'quizzes' | 'games' | 'liveGames' | 'spaces' | 'notes' | 'boards', { count: number; capped: boolean }>
+  usage: { allTime: UsageWindow; last30Days: UsageWindow }
+}
+
 export const adminActions = {
   exportData,
+  adminSummary,
 }

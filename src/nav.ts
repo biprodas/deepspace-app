@@ -27,7 +27,7 @@ export const nav: NavItem[] = [
   { path: '/history', label: 'History' },
   { path: '/leaderboard', label: 'Leaderboard' },
   { path: '/settings', label: 'Settings', placement: 'account' },
-  { path: '/admin/data', label: 'Data', roles: ['admin'], placement: 'account' },
+  { path: '/admin', label: 'Admin console', roles: ['admin'], placement: 'account' },
   // The /api-status debug page still exists — add
   // `{ path: '/api-status', label: 'API Status', devOnly: true }` to surface it.
   // ── Features add nav items below this line ──

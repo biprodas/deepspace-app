@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, Database, LogOut, Menu, Settings, X, type LucideIcon } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Settings, ShieldCheck, X, type LucideIcon } from 'lucide-react'
 import { Logo } from './landing/bits'
 import type { Role } from '../constants'
 import { nav } from '../nav'
@@ -33,7 +33,7 @@ import {
 /** Icons for account-menu links, by path. */
 const ACCOUNT_ICONS: Record<string, LucideIcon> = {
   '/settings': Settings,
-  '/admin/data': Database,
+  '/admin': ShieldCheck,
 }
 
 export default function Navigation() {
@@ -155,7 +155,7 @@ export default function Navigation() {
                       return (
                         <DropdownMenuItem
                           key={item.path}
-                          data-testid={`nav-account-${item.label.toLowerCase()}`}
+                          data-testid={`nav-account-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                           render={<Link to={item.path} />}
                         >
                           <Icon aria-hidden />

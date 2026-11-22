@@ -201,6 +201,15 @@ Build these end to end before anything in section 2.
   **Done when:** a member's shape appears for the other, a member who leaves
   gets no board and no socket, and a generated map is drawn once.
 
+- **F16. Admin console** (`/admin`, admins only, from the account menu): a
+  sidebar of Overview (counts of users, quizzes, games, spaces, notes,
+  boards), Users (everyone, searchable, role changes with a confirmation),
+  API usage (Claude drafts and tokens, mind maps, Wikipedia lookups, invite
+  emails; last 30 days and all time, from the app's own records, since the
+  billing ledger isn't readable from the app), Credits (the admin's DeepSpace
+  balance, with links to the dashboard) and Data (the JSON export). Numbers
+  come from owner-only actions (`adminSummary`, `exportData`).
+
 ## 3. Deliberately left out (explain in the write-up)
 
 | Left out | Why |

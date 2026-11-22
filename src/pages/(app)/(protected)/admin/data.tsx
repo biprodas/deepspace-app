@@ -1,13 +1,15 @@
 /**
- * Owner-only data inspector: /admin/data (docs/trd.md §13). Everything comes
+ * Owner-only data inspector: /admin/data (docs/trd.md §13), a section of
+ * the admin console (./_layout.tsx). Everything comes
  * from the `exportData` action, which refuses anyone but the app owner; the
  * page itself grants nothing.
  */
 
 import { usePageTitle } from '@/lib/page-title'
 import { useCallback, useEffect, useState } from 'react'
-import { Database, Download, RefreshCw, ShieldAlert } from 'lucide-react'
-import { Badge, Button, EmptyState } from '@/components/ui'
+import { Database, Download } from 'lucide-react'
+import { Badge, Button } from '@/components/ui'
+import { AdminHeader, OwnerOnly } from '@/components/admin/admin-ui'
 import { callAction } from '@/lib/actions-client'
 import type { Room, RoomPlayer } from '@/schemas/game-types'
 
@@ -50,7 +52,7 @@ export default function AdminDataPage() {
   }
 
   if (error?.code === 'forbidden') {
-    return <EmptyState icon={<ShieldAlert />} title="Owner only" description="Only the app owner can inspect the data." />
+    return <OwnerOnly />
   }
 
   const rooms = (data?.collections.rooms ?? []) as { recordId: string; createdAt: string; data: Room }[]
@@ -58,16 +60,17 @@ export default function AdminDataPage() {
   const playerCount = (roomId: string) => players.filter((p) => p.data.roomId === roomId && !p.data.removed).length
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 pb-24 pt-8 sm:px-6">
-      <header className="flex flex-wrap items-center gap-3">
-        <h1 className="flex-1 font-display text-3xl font-bold tracking-tight">Data</h1>
-        <Button variant="outline" onClick={() => void load()} loading={loading}>
-          <RefreshCw /> Refresh
-        </Button>
-        <Button onClick={download} disabled={!data}>
+    <div className="space-y-8">
+      <AdminHeader
+        title="Data"
+        description="Every game collection as JSON; pasted notes are left out."
+        onRefresh={() => void load()}
+        refreshing={loading}
+      >
+        <Button size="sm" onClick={download} disabled={!data}>
           <Download /> Download JSON
         </Button>
-      </header>
+      </AdminHeader>
 
       {error && <p role="alert" className="text-sm font-medium text-destructive">{error.message}</p>}
 

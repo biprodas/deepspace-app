@@ -22,6 +22,7 @@ import {
 import { CanvasView } from '@/components/boards/CanvasView'
 import { SpaceFocusBar } from '@/components/space/SpaceFocusBar'
 import { useFocusMode } from '@/lib/focus-mode'
+import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { BOARD_TITLE_MAX } from '@/lib/game-rules'
 import { layoutMindMap, mindMapSchema } from '@/lib/mindmap'
 import { usePageTitle } from '@/lib/page-title'
@@ -125,7 +126,8 @@ export default function BoardPage() {
         onConfirm={async () => {
           const res = await run('deleteBoard', { boardId })
           setDeleting(false)
-          if (res.success) navigate(back, { replace: true })
+          // Already confirmed by the delete dialog; don't ask "Leave this board?" too.
+          if (res.success) navigate(back, { replace: true, state: LEAVE_CONFIRMED })
         }}
       />
     </div>

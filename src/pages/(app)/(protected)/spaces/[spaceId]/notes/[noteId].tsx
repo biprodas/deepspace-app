@@ -25,6 +25,7 @@ import { NoteEditor } from '@/components/notes/NoteEditor'
 import { QuizFromNoteModal } from '@/components/notes/QuizFromNoteModal'
 import { SpaceFocusBar } from '@/components/space/SpaceFocusBar'
 import { useFocusMode } from '@/lib/focus-mode'
+import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { NOTE_TITLE_MAX } from '@/lib/game-rules'
 import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
@@ -126,7 +127,8 @@ export default function NotePage() {
           onConfirm={async () => {
             const res = await run('deleteNote', { noteId })
             setDeleting(false)
-            if (res.success) navigate(`/spaces/${spaceId}?tab=notes`, { replace: true })
+            // Already confirmed by the delete dialog; don't ask "Leave this note?" too.
+            if (res.success) navigate(`/spaces/${spaceId}?tab=notes`, { replace: true, state: LEAVE_CONFIRMED })
           }}
         />
       </div>

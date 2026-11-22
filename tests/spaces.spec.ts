@@ -112,3 +112,37 @@ test('notes and boards open in focus mode and show who is working where', async 
   await memberUser.page.getByTestId('space-avatars').click()
   await expect(memberUser.page.getByTestId('space-roster')).toContainText('In Sketch', { timeout: 15_000 })
 })
+
+test('leaving a note asks first; deleting it does not ask twice', async ({ users }) => {
+  const [ownerUser] = await users(1)
+  const owner = await actionsAs(ownerUser.page)
+  const space = await createTestSpace(owner, 'Leaving')
+  const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId: space.spaceId, title: 'Draft' })
+  const page = ownerUser.page
+  const noteUrl = new RegExp(`/notes/${note!.noteId}$`)
+  await page.goto(`/spaces/${space.spaceId}`)
+  await page.getByTestId('tab-notes').click()
+  await page.getByRole('link', { name: /Draft/ }).click()
+  await expect(page.getByTestId('space-focus-bar')).toBeVisible({ timeout: 15_000 })
+
+  // Exit asks; Stay keeps the note open.
+  await page.getByTestId('space-exit').click()
+  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Stay' }).click()
+  await expect(page).toHaveURL(noteUrl)
+
+  // The browser's Back asks too; Leave goes back to the space's notes.
+  await page.goBack()
+  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Leave' }).click()
+  await expect(page).toHaveURL(/\/spaces\/[^/]+(\?tab=notes)?$/)
+  await expect(page.getByTestId('space-focus-bar')).toHaveCount(0)
+
+  // Deleting goes straight back without a second "Leave?".
+  await page.goto(`/spaces/${space.spaceId}/notes/${note!.noteId}`)
+  await page.getByRole('button', { name: 'Note options' }).click({ timeout: 15_000 })
+  await page.getByRole('menuitem', { name: 'Delete note' }).click()
+  await page.getByRole('button', { name: 'Delete note' }).click()
+  await expect(page).toHaveURL(/\?tab=notes$/, { timeout: 10_000 })
+  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toHaveCount(0)
+})

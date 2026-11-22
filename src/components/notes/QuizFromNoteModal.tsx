@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input, Label, Modal, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui'
 import { MAX_NOTES_CHARS, MAX_QUESTIONS, MIN_QUESTIONS } from '@/lib/game-rules'
+import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { useAction } from '@/lib/use-action'
 import { DIFFICULTIES, type Difficulty } from '@/schemas/game-types'
 
@@ -40,7 +41,8 @@ export function QuizFromNoteModal({ open, onClose, noteTitle, getText }: QuizFro
       questionCount: Number(count),
       difficulty,
     })
-    if (res.success) navigate(`/quizzes/${res.data.quizId}`)
+    // Choosing "Make quiz" is the decision to leave; skip the note's leave prompt.
+    if (res.success) navigate(`/quizzes/${res.data.quizId}`, { state: LEAVE_CONFIRMED })
   }
 
   return (

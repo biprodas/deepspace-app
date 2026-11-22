@@ -30,6 +30,7 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import type { Awareness } from 'deepspace'
 import type * as Y from 'yjs'
+import { SlashCommandExtension } from './SlashCommand'
 
 type CollaborationUser = {
   name?: string | null
@@ -118,7 +119,7 @@ export function useDocEditor({
   userColor,
   synced,
   canWrite,
-  placeholder = 'Start typing — toolbar above for formatting…',
+  placeholder = "Type '/' for commands",
 }: UseDocEditorOptions): Editor | null {
   /** Structured CRDT field that ProseMirror binds to. */
   const fragment = useMemo(() => doc.getXmlFragment('default'), [doc])
@@ -132,6 +133,8 @@ export function useDocEditor({
         // Yjs has its own undo/redo history via the Collaboration extension; keeping
         // both enabled corrupts the shared document on undo.
         undoRedo: false,
+        // Where a dragged block will land (src/components/notes/editor/BlockHandle.tsx).
+        dropcursor: { color: '#3b82f6', width: 3 },
         link: {
           openOnClick: false,
           autolink: true,
@@ -151,7 +154,11 @@ export function useDocEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Typography,
-      Placeholder.configure({ placeholder }),
+      // Notion-style: a hint on the empty line you're on; headings say which level they are.
+      Placeholder.configure({
+        placeholder: ({ node }) => (node.type.name === 'heading' ? `Heading ${node.attrs.level}` : placeholder),
+      }),
+      SlashCommandExtension,
     ]
 
     if (provider) {

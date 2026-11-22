@@ -314,3 +314,35 @@
     display: none !important;
   }
 }
+
+/*
+ * Study-space notes (src/components/notes/NoteEditor.tsx): the note is a
+ * white sheet in both colour modes, because the editor's text colours are
+ * dark-on-paper. Pin the toolbar and controls on the sheet to the same light
+ * palette, so in dark mode the card doesn't split into a dark toolbar over a
+ * white page.
+ */
+.note-paper {
+  --documents-el-surface: #ffffff;
+  --documents-el-text: #1d1d1f;
+  --documents-el-muted: #6b7280;
+  --documents-el-line: rgba(15, 23, 42, 0.12);
+  --documents-el-bg: #ffffff;
+  color: var(--documents-el-text);
+}
+
+/* Notion-style hints: the placeholder shows on whichever empty line has the cursor. */
+.note-paper .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--documents-editor-paper-muted);
+}
+
+/* A block picked up by the drag handle. */
+.note-paper .ProseMirror-selectednode {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

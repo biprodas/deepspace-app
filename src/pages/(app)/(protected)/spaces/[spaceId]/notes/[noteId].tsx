@@ -1,7 +1,8 @@
 /**
  * A shared note in a study space: /spaces/:spaceId/notes/:noteId
  * (docs/features.md F14). Every member edits live; the title saves on blur;
- * "Make a quiz" turns the note into a reviewed quiz.
+ * "Make a quiz" (top right) turns the note into a reviewed quiz. The note
+ * is a bordered page on a tinted desk, so the writing area is obvious.
  */
 
 import { useState } from 'react'
@@ -24,12 +25,15 @@ import { NOTE_TITLE_MAX } from '@/lib/game-rules'
 import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
 import type { Note } from '@/schemas/note-schemas'
+import type { Space } from '@/schemas/space-types'
 
 export default function NotePage() {
   const { spaceId = '', noteId = '' } = useParams()
   const navigate = useNavigate()
   const { records, status } = useQuery<Note>('documents', { where: { recordId: noteId }, limit: 1 })
   const note = records[0]
+  const spaces = useQuery<Space>('spaces', { where: { recordId: spaceId }, limit: 1 })
+  const space = spaces.records[0]
   const { run, pending } = useAction()
   const [makingQuiz, setMakingQuiz] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -51,68 +55,87 @@ export default function NotePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-5xl flex-col px-4 pb-16 pt-6 sm:px-6">
-      <header className="mb-2 flex items-center gap-2">
-        <Link
-          to={`/spaces/${spaceId}?tab=notes`}
-          aria-label="Back to the space"
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <ArrowLeft className="size-5" />
-        </Link>
-        <input
-          key={note.data.title}
-          defaultValue={note.data.title}
-          maxLength={NOTE_TITLE_MAX}
-          aria-label="Note title"
-          data-testid="note-title"
-          onBlur={(e) => {
-            const title = e.target.value.trim()
-            if (title && title !== note.data.title) void run('renameNote', { noteId, title })
-            else e.target.value = note.data.title
+    <>
+      {/* The "desk": a tinted surface the page sits on, so the writing area reads as one sheet. */}
+      <div className="min-h-[calc(100dvh-3.5rem)] bg-muted/40 pb-16">
+        <header className="mx-auto flex max-w-4xl items-center gap-x-3 gap-y-2 px-4 pb-4 pt-5 sm:px-2">
+          <Link
+            to={`/spaces/${spaceId}?tab=notes`}
+            aria-label="Back to the space"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <ArrowLeft className="size-5" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <nav aria-label="Breadcrumb" className="truncate px-2 text-xs text-muted-foreground">
+              <Link to={`/spaces/${spaceId}`} className="hover:text-foreground hover:underline">
+                {space?.data.name ?? 'Space'}
+              </Link>
+              <span aria-hidden="true"> / </span>
+              <Link to={`/spaces/${spaceId}?tab=notes`} className="hover:text-foreground hover:underline">
+                Notes
+              </Link>
+            </nav>
+            <input
+              key={note.data.title}
+              defaultValue={note.data.title}
+              maxLength={NOTE_TITLE_MAX}
+              aria-label="Note title"
+              data-testid="note-title"
+              onBlur={(e) => {
+                const title = e.target.value.trim()
+                if (title && title !== note.data.title) void run('renameNote', { noteId, title })
+                else e.target.value = note.data.title
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              className="w-full rounded-md bg-transparent px-2 py-0.5 font-display text-xl font-bold sm:text-2xl tracking-tight outline-none hover:bg-accent/60 focus:bg-accent/60"
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button onClick={() => setMakingQuiz(true)} data-testid="quiz-from-note-open">
+              <Sparkles />
+              <span className="sm:hidden">Quiz</span>
+              <span className="hidden sm:inline">Make a quiz</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Note options" />}>
+                <MoreHorizontal />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={() => setDeleting(true)} className="text-destructive focus:text-destructive">
+                  <Trash2 aria-hidden /> Delete note
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <div className="px-2 sm:px-4">
+          <NoteEditor noteId={noteId} onEditor={setEditor} />
+        </div>
+
+        {makingQuiz && (
+          <QuizFromNoteModal
+            open
+            onClose={() => setMakingQuiz(false)}
+            noteTitle={note.data.title}
+            getText={() => editor?.getText({ blockSeparator: '\n\n' }) ?? ''}
+          />
+        )}
+        <ConfirmModal
+          open={deleting}
+          onClose={() => setDeleting(false)}
+          title={`Delete “${note.data.title}”?`}
+          description="It’s gone for everyone in the space."
+          confirmText="Delete note"
+          loading={pending === 'deleteNote'}
+          onConfirm={async () => {
+            const res = await run('deleteNote', { noteId })
+            setDeleting(false)
+            if (res.success) navigate(`/spaces/${spaceId}?tab=notes`, { replace: true })
           }}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          className="min-w-0 flex-1 rounded-md bg-transparent px-2 py-1 font-display text-2xl font-bold tracking-tight outline-none hover:bg-accent/50 focus:bg-accent/50"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Note options" />}>
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={() => setDeleting(true)} className="text-destructive focus:text-destructive">
-              <Trash2 aria-hidden /> Delete note
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </header>
-
-      <NoteEditor noteId={noteId} onEditor={setEditor}>
-        <Button size="sm" variant="outline" onClick={() => setMakingQuiz(true)} data-testid="quiz-from-note-open">
-          <Sparkles /> Make a quiz
-        </Button>
-      </NoteEditor>
-
-      {makingQuiz && (
-        <QuizFromNoteModal
-          open
-          onClose={() => setMakingQuiz(false)}
-          noteTitle={note.data.title}
-          getText={() => editor?.getText({ blockSeparator: '\n\n' }) ?? ''}
-        />
-      )}
-      <ConfirmModal
-        open={deleting}
-        onClose={() => setDeleting(false)}
-        title={`Delete “${note.data.title}”?`}
-        description="It’s gone for everyone in the space."
-        confirmText="Delete note"
-        loading={pending === 'deleteNote'}
-        onConfirm={async () => {
-          const res = await run('deleteNote', { noteId })
-          setDeleting(false)
-          if (res.success) navigate(`/spaces/${spaceId}?tab=notes`, { replace: true })
-        }}
-      />
-    </div>
+      </div>
+    </>
   )
 }

@@ -174,7 +174,10 @@ Build these end to end before anything in section 2.
   (Tiptap + Yjs, with each other's cursors; the editor comes from DeepSpace's
   `documents` feature). Note rows are team-scoped like spaces, and the Yjs
   route admits only the space's active members, so leaving or being removed
-  cuts editing off too; unknown doc ids are refused. "Make a quiz" sends the
+  cuts editing off too; unknown doc ids are refused. Editing is Notion-style:
+  "/" opens a block menu (headings, lists, to-dos, quote, code, divider), a
+  handle beside each block adds a block or drags it, and selecting text shows
+  a formatting bar; the note is a white page in both colour modes. "Make a quiz" sends the
   note's text to the existing notes generator, so questions stay backed by a
   sentence from the note. In a game hosted in a space, members can "Add to
   notes" on a reveal: the question, answer, explanation and source go into

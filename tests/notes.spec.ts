@@ -116,3 +116,44 @@ test('"Add to notes" writes a revealed question into the session note', async ({
 
   await owner('endRoom', { roomId: room!.roomId })
 })
+
+test('the "/" menu, the format bar and the block handle edit a note', async ({ users }) => {
+  const [ownerUser] = await users(1)
+  const owner = await actionsAs(ownerUser.page)
+  const { spaceId } = await createTestSpace(owner, 'Notion-style')
+  const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId, title: 'Blocks' })
+  const page = ownerUser.page
+  await page.setViewportSize({ width: 1280, height: 860 })
+  await page.goto(`/spaces/${spaceId}/notes/${note!.noteId}`)
+  await expect(page.getByTestId('note-status')).toHaveAttribute('data-state', 'saved', { timeout: 20_000 })
+  const editor = editorOf(page)
+
+  // "/" opens the block menu; typing filters it; Enter turns the line into that block.
+  await editor.click()
+  await page.keyboard.type('/')
+  await expect(page.getByTestId('slash-menu')).toBeVisible()
+  await page.keyboard.type('h1')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Cell respiration')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('/todo')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Learn the Krebs cycle')
+  await expect(editor.locator('h1')).toHaveText('Cell respiration')
+  await expect(editor.locator('ul[data-type="taskList"] li')).toHaveCount(1)
+
+  // Selecting text shows the format bar.
+  await editor.locator('h1').dblclick({ position: { x: 10, y: 10 } })
+  await expect(page.getByTestId('note-bubble-menu')).toBeVisible()
+  await page.getByRole('button', { name: 'Italic' }).click()
+  await expect(editor.locator('h1 em')).toHaveCount(1)
+
+  // The block handle's "+" adds a block below and opens the menu there.
+  await editor.locator('h1').hover()
+  await page.getByRole('button', { name: 'Add a block below' }).click()
+  await expect(page.getByTestId('slash-menu')).toBeVisible()
+  await page.keyboard.type('quote')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Powerhouse of the cell')
+  await expect(editor.locator('blockquote')).toHaveText('Powerhouse of the cell')
+})

@@ -63,5 +63,8 @@
     "vite-plugin-checker": "^0.14.1",
     "wrangler": "^4.79.0"
   },
+  "overrides": {
+    "workerd": "1.20261119.1"
+  },
   "private": true
 }

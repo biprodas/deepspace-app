@@ -13,7 +13,7 @@ The server owns the answer key, the clock and the score. Players never
 receive the correct answer before the reveal, and answers after the deadline
 are refused by the server.
 
-> **Status:** in development. Live URL: _not deployed yet_.
+> **Status:** in development. Live URL: <https://studyarena.app.space/>.
 
 ## Features
 

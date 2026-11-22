@@ -95,7 +95,7 @@ const updateSpace = defineAction(z.object({ spaceId: recordId, ...spaceFields })
   return { spaceId: p.spaceId }
 })
 
-/** Deletes the space with its memberships and invites. Games played in it are kept. */
+/** Deletes the space with its memberships, invites and notes. Games played in it are kept. */
 const deleteSpace = defineAction(z.object({ spaceId: recordId }), async ({ userId, tools }, p) => {
   const space = await getRecord<Space>(tools, 'spaces', p.spaceId, 'Space')
   requireOwner(space, userId)
@@ -104,6 +104,9 @@ const deleteSpace = defineAction(z.object({ spaceId: recordId }), async ({ userI
   }
   for (const i of await queryRecords<SpaceInvite>(tools, 'space_invites', { spaceId: p.spaceId })) {
     unwrap(await tools.remove('space_invites', i.recordId))
+  }
+  for (const n of await queryRecords(tools, 'documents', { spaceId: p.spaceId })) {
+    unwrap(await tools.remove('documents', n.recordId))
   }
   unwrap(await tools.remove('spaces', p.spaceId))
   return { spaceId: p.spaceId }

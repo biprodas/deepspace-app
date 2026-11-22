@@ -20,11 +20,12 @@ const GAME_COLLECTIONS = [
   'spaces',
   'team_members',
   'space_invites',
+  'documents',
 ]
 const byName = new Map(schemas.map((s) => [s.name, s]))
 
 /** Space-scoped collections, readable only by the space's members (the SDK's `'team'` rule). */
-const TEAM_COLLECTIONS = ['spaces', 'team_members']
+const TEAM_COLLECTIONS = ['spaces', 'team_members', 'documents']
 
 describe('schemas', () => {
   it('pass the SDK schema lint', () => {

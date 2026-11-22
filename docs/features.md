@@ -170,6 +170,17 @@ Build these end to end before anything in section 2.
   non-members never receive them. Notes and boards (later) use the same rule.
   **Done when:** a non-member gets nothing for a space id, joining by link
   shows it, a removed member loses it and can't rejoin.
+- **F14. Shared notes in a space:** members write notes together live
+  (Tiptap + Yjs, with each other's cursors; the editor comes from DeepSpace's
+  `documents` feature). Note rows are team-scoped like spaces, and the Yjs
+  route admits only the space's active members, so leaving or being removed
+  cuts editing off too; unknown doc ids are refused. "Make a quiz" sends the
+  note's text to the existing notes generator, so questions stay backed by a
+  sentence from the note. In a game hosted in a space, members can "Add to
+  notes" on a reveal: the question, answer, explanation and source go into
+  that game's session note.
+  **Done when:** two members see each other's typing, a member who leaves
+  gets no note and no socket, and a pinned reveal shows in the session note.
 
 ## 3. Deliberately left out (explain in the write-up)
 
@@ -224,6 +235,9 @@ Key points:
 | `joinSpace` / `leaveSpace` | member | Join by code (refuses removed members) / leave (can rejoin) |
 | `removeMember` | owner | Mark a membership removed |
 | `inviteToSpace` | space member | Invite by account or email, as `invitePlayers` does for games |
+| `createNote` / `renameNote` | space member | Note row (its text is edited live over Yjs) / rename |
+| `deleteNote` | note's author or space owner | Delete a note |
+| `sessionNote` | space member | The session note for a game in a space, created on first use |
 
 Every host-only action checks the caller against the room on the server.
 

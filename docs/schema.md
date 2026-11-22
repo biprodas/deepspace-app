@@ -279,6 +279,18 @@ model SpaceInvite {
   @@unique([spaceId, key])
 }
 
+/// A shared note in a space. Named `documents` because the Yjs route reads it;
+/// the text lives in the Yjs room named after recordId. read: 'team'.
+model Note {           // collection: documents
+  recordId  String   @id
+  title     String
+  spaceId   String   // Space.recordId
+  teamId    String   // = spaceId
+  ownerId   String   // User.id (author)
+  roomId    String?  // set on a game's session note
+  createdAt DateTime
+}
+
 /// Each player reads only their own rows.
 model Answer {
   recordId    String  @id
@@ -333,6 +345,7 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │                   └─< Standing   >── User
       └─< Space ─┬─< TeamMember >── User
                  ├─< SpaceInvite >── User (optional)
+                 ├─< Note (documents; text in Yjs)
                  └─< Room (optional spaceId)
 ```
 

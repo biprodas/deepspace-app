@@ -3,6 +3,7 @@ import type { Env } from '../../worker'
 import { adminActions } from './admin'
 import { gameActions } from './game'
 import { inviteActions } from './invite'
+import { noteActions } from './note'
 import { pollActions } from './poll'
 import { quizActions } from './quiz'
 import { roomActions } from './room'
@@ -14,6 +15,7 @@ const registry = {
   ...inviteActions,
   ...pollActions,
   ...spaceActions,
+  ...noteActions,
   ...gameActions,
   ...adminActions,
 }

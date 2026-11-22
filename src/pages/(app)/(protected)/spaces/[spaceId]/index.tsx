@@ -1,13 +1,14 @@
 /**
  * A study space: /spaces/:spaceId (docs/features.md F13). Name and code,
- * who's in it and who's online, games played here, and a way to host one.
+ * who's in it and who's online, games played here and a way to host one,
+ * and the space's shared notes (?tab=notes).
  * Non-members get nothing from the server (the `'team'` rule), so they see
  * "not found" and the way to join.
  */
 
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Check, Copy, LogOut, MoreHorizontal, Pencil, SearchX, Trash2 } from 'lucide-react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Check, Copy, FileText, LayoutGrid, LogOut, MoreHorizontal, Pencil, SearchX, Trash2 } from 'lucide-react'
 import {
   Button,
   ConfirmModal,
@@ -16,11 +17,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   EmptyState,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@/components/ui'
 import { CreateSpaceModal } from '@/components/space/CreateSpaceModal'
 import { SpaceGames } from '@/components/space/SpaceGames'
 import { SpaceInviteButton } from '@/components/space/SpaceInviteButton'
 import { SpaceMembers } from '@/components/space/SpaceMembers'
+import { SpaceNotes } from '@/components/space/SpaceNotes'
 import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
 import { useCopy } from '@/lib/use-copy'
@@ -33,6 +39,8 @@ export default function SpacePage() {
   const { space, isOwner, isMember } = state
   const { run, pending } = useAction()
   const { copied, copy } = useCopy()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') === 'notes' ? 'notes' : 'overview'
   const [editing, setEditing] = useState(false)
   const [confirm, setConfirm] = useState<'leave' | 'delete' | null>(null)
   usePageTitle(space?.data.name ?? 'Study space')
@@ -97,10 +105,25 @@ export default function SpacePage() {
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <SpaceGames state={state} />
-        <SpaceMembers state={state} />
-      </div>
+      <Tabs value={tab} onValueChange={(v) => setSearchParams(v === 'overview' ? {} : { tab: String(v) }, { replace: true })}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">
+            <LayoutGrid /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="notes" data-testid="tab-notes">
+            <FileText /> Notes
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <SpaceGames state={state} />
+            <SpaceMembers state={state} />
+          </div>
+        </TabsContent>
+        <TabsContent value="notes">
+          <SpaceNotes state={state} />
+        </TabsContent>
+      </Tabs>
 
       {editing && (
         <CreateSpaceModal

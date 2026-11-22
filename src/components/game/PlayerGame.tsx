@@ -12,6 +12,7 @@ import { CheckCircle2, Clock, Hourglass, Pause, WifiOff, XCircle } from 'lucide-
 import { useCountdown, useServerOffset } from '@/lib/clock'
 import { useAction } from '@/lib/use-action'
 import type { RoomState } from '@/lib/use-room'
+import { AddToNotes } from './AddToNotes'
 import { AnswerTiles } from './AnswerTiles'
 import { Countdown } from './Countdown'
 import { RevealPanel } from './RevealPanel'
@@ -105,6 +106,16 @@ export function PlayerGame({ state }: { state: RoomState }) {
               onFlag: () => void run('flagConfused', { roundId: round.recordId }),
             }}
           />
+          {room.data.spaceId && (
+            <AddToNotes
+              roomId={room.recordId}
+              spaceId={room.data.spaceId}
+              userId={userId}
+              roundId={round.recordId}
+              question={question}
+              round={round.data}
+            />
+          )}
           <section>
             <h2 className="mb-2 text-sm font-semibold">Standings</h2>
             <StandingsList standings={standings} names={names} userId={userId} limit={5} />

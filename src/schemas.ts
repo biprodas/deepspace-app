@@ -19,9 +19,12 @@ import {
 import {
   answersSchema,
   leaderboardSchema,
+  pollVotesSchema,
+  pollsSchema,
   roomInvitesSchema,
   roomPlayersSchema,
   roomsSchema,
+  roundFlagsSchema,
   roundsSchema,
   standingsSchema,
 } from './schemas/game-schemas'
@@ -37,6 +40,9 @@ export const schemas: CollectionSchema[] = [
   roundsSchema,
   roomPlayersSchema,
   roomInvitesSchema,
+  roundFlagsSchema,
+  pollsSchema,
+  pollVotesSchema,
   answersSchema,
   standingsSchema,
   leaderboardSchema,

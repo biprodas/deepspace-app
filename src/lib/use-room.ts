@@ -1,16 +1,28 @@
 /**
  * Everything a room screen renders from, as live queries: the room, its
  * quiz and questions, players, rounds, standings, the viewer's own answers,
- * who's online and what the viewer is in it. Screens derive from this
+ * the latest poll and the viewer's votes and "confused" flags, who's online
+ * (and their reactions) and what the viewer is in it. Screens derive from this
  * alone, which is what makes refresh/reconnect recover (docs/trd.md §5).
  *
  * Permissions decide what arrives: `answers` holds only the viewer's own
  * rows, and a round's reveal fields are empty until the server reveals it.
  */
 
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { usePresenceRoom, useQuery, useUser } from 'deepspace'
-import type { Answer, Question, Quiz, Room, RoomPlayer, Round, Standing } from '@/schemas/game-types'
+import type {
+  Answer,
+  Poll,
+  PollVote,
+  Question,
+  Quiz,
+  Room,
+  RoomPlayer,
+  Round,
+  RoundFlag,
+  Standing,
+} from '@/schemas/game-types'
 
 export type RoomRole = 'host' | 'co-host' | 'player' | 'removed' | 'outsider'
 
@@ -32,6 +44,9 @@ export function useRoom(roomId: string) {
   const rounds = useQuery<Round>('rounds', { where: { roomId }, orderBy: 'roundNumber', orderDir: 'asc' })
   const standings = useQuery<Standing>('standings', { where: { roomId }, orderBy: 'rank', orderDir: 'asc' })
   const answers = useQuery<Answer>('answers', { where: { roomId, userId: user?.id ?? '' } })
+  const polls = useQuery<Poll>('polls', { where: { roomId }, orderBy: 'createdAt', orderDir: 'desc', limit: 1 })
+  const votes = useQuery<PollVote>('poll_votes', { where: { roomId, userId: user?.id ?? '' } })
+  const flags = useQuery<RoundFlag>('round_flags', { where: { roomId, userId: user?.id ?? '' } })
   const presence = usePresenceRoom(presenceScope(roomId))
 
   const online = useMemo(() => {
@@ -52,6 +67,16 @@ export function useRoom(roomId: string) {
   const answersByRound = useMemo(
     () => new Map(answers.records.map((a) => [a.data.roundId, a.data])),
     [answers.records],
+  )
+  const myVotes = useMemo(
+    () => new Map(votes.records.map((v) => [v.data.pollId, v.data.choiceIndex])),
+    [votes.records],
+  )
+  const flaggedRounds = useMemo(() => new Set(flags.records.map((f) => f.data.roundId)), [flags.records])
+  const { updateState } = presence
+  const react = useCallback(
+    (emoji: string) => updateState({ reaction: { emoji, id: crypto.randomUUID(), at: Date.now() } }),
+    [updateState],
   )
   const me = players.records.find((p) => p.data.userId === user?.id)
   const round = rounds.records.find((r) => r.recordId === room?.data.currentRoundId)
@@ -87,6 +112,14 @@ export function useRoom(roomId: string) {
     approvedCount: questions.records.filter((q) => q.data.approved).length,
     standings: standings.records.map((s) => s.data),
     answersByRound,
+    /** The room's latest poll, open or closed. */
+    poll: polls.records[0],
+    myVotes,
+    flaggedRounds,
+    /** Peers' presence, for reactions; the viewer's own reactions aren't echoed back. */
+    peers: presence.peers,
+    /** Sends an emoji reaction to everyone in the room (presence only; nothing stored). */
+    react,
   } as const
 }
 

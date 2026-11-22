@@ -148,6 +148,17 @@ Build these end to end before anything in section 2.
 - **F11. All-time leaderboard**, kept by the server from final standings
   (not `npx deepspace add leaderboard`, which lets users submit scores;
   see implementation-plan.md M6).
+- **F12. Polls, "still confused" and reactions** (added after the first
+  release): the host or a co-host opens a poll in a lobby or live game
+  (templates: confidence check, ready?, pace; or 2–6 custom options). One poll
+  is open at a time. Players vote and can change their vote until it closes;
+  votes are private and only the poll's counts are published, recomputed on
+  every vote. After a reveal, players can mark "still confused" once per
+  question, and the host sees the count. Emoji reactions travel as presence
+  state, so nothing is stored and they cover most of what chat would, without
+  free text to moderate.
+  **Done when:** a player's vote shows in both browsers' counts, a closed poll
+  refuses votes, and a host can't vote.
 
 ## 3. Deliberately left out (explain in the write-up)
 
@@ -157,7 +168,7 @@ Build these end to end before anything in section 2.
 | Voice / reading aloud (ElevenLabs) | Costs per character and doesn't help the core game |
 | Payments | Nothing to sell during evaluation |
 | Public room browser / matchmaking | Needs moderation; scope without depth |
-| Team mode, chat | A different game; chat needs moderation |
+| Team mode, chat | A different game; chat needs moderation (polls and reactions, F12, cover the live feedback without free text) |
 | Image / audio questions | Source licensing and extra rendering work |
 | File uploads for notes | Pasting text covers the need without file parsing |
 | Draft/published states, duplicate quiz, points per question | More forms, no added depth; approval already covers "ready to play" |
@@ -195,6 +206,9 @@ Key points:
 | `skipQuestion` | host / co-host | Mark the round skipped, move on without scoring |
 | `pauseRoom` / `resumeRoom` | host / co-host | Store the round's remaining time / set a fresh deadline |
 | `endRoom` | host | End early: status `cancelled`, keep results so far |
+| `createPoll` / `closePoll` | host / co-host | Open a poll (closing any open one) / close it |
+| `votePoll` | player | Cast or change a vote; recompute the poll's counts |
+| `flagConfused` | player | Mark a revealed question "still confused"; recompute the round's count |
 
 Every host-only action checks the caller against the room on the server.
 

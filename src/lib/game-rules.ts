@@ -12,6 +12,13 @@ export const MAX_PLAYERS = 50
 export const MAX_INVITES_PER_CALL = 10
 export const MAX_INVITES_PER_ROOM = 50
 
+// ─── Polls ───────────────────────────────────────────────
+
+export const POLL_MIN_OPTIONS = 2
+export const POLL_MAX_OPTIONS = 6
+export const POLL_QUESTION_MAX = 140
+export const POLL_OPTION_MAX = 60
+
 /** Allowed question time limits, in seconds. */
 export const TIME_LIMITS = [10, 20, 30, 60] as const
 export type TimeLimit = (typeof TIME_LIMITS)[number]

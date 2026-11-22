@@ -11,6 +11,9 @@ const GAME_COLLECTIONS = [
   'rounds',
   'room_players',
   'room_invites',
+  'round_flags',
+  'polls',
+  'poll_votes',
   'answers',
   'standings',
   'leaderboard',
@@ -36,6 +39,8 @@ describe('schemas', () => {
     ['answers', 'userId'],
     ['generations', 'userId'],
     ['room_invites', 'inviteeId'],
+    ['round_flags', 'userId'],
+    ['poll_votes', 'userId'],
   ])('%s is readable by its owner only, admins included', (name, ownerField) => {
     const schema = byName.get(name)!
     expect(schema.ownerField).toBe(ownerField)

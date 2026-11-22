@@ -5,7 +5,7 @@
  */
 
 import type { CollectionSchema } from 'deepspace/schema'
-import { INVITE_STATUSES, ROOM_STATUSES, ROUND_STATUSES } from './game-types'
+import { INVITE_STATUSES, POLL_KINDS, POLL_STATUSES, ROOM_STATUSES, ROUND_STATUSES } from './game-types'
 import { bool, json, num, select, serverWritten, text, time } from './schema-helpers'
 
 export const roomsSchema: CollectionSchema = {
@@ -45,6 +45,7 @@ export const roundsSchema: CollectionSchema = {
     text('sourceQuote'),
     text('sourceUrl'),
     json('distribution'),
+    num('confusedCount', { default: 0 }),
   ],
   uniqueOn: ['roomId', 'roundNumber'],
   permissions: serverWritten(true),
@@ -85,6 +86,50 @@ export const roomInvitesSchema: CollectionSchema = {
   ],
   uniqueOn: ['roomId', 'key'],
   ownerField: 'inviteeId',
+  permissions: serverWritten('own'),
+}
+
+/** "Still confused" flags; players read only their own, the count is on the round. */
+export const roundFlagsSchema: CollectionSchema = {
+  name: 'round_flags',
+  columns: [
+    text('roomId', { required: true, immutable: true }),
+    text('roundId', { required: true, immutable: true }),
+    text('userId', { required: true, immutable: true }),
+  ],
+  uniqueOn: ['roundId', 'userId'],
+  ownerField: 'userId',
+  permissions: serverWritten('own'),
+}
+
+/** Live polls in a room; everyone in the app reads them like rounds. */
+export const pollsSchema: CollectionSchema = {
+  name: 'polls',
+  columns: [
+    text('roomId', { required: true, immutable: true }),
+    text('question', { required: true, immutable: true }),
+    json('options', { required: true, immutable: true }),
+    select('kind', POLL_KINDS, { required: true, immutable: true }),
+    select('status', POLL_STATUSES, { required: true }),
+    text('createdBy', { required: true, immutable: true }),
+    json('counts', { required: true }),
+    time('createdAt', { required: true, immutable: true }),
+    time('closedAt'),
+  ],
+  permissions: serverWritten(true),
+}
+
+/** One vote per player per poll; private, only the poll's counts are public. */
+export const pollVotesSchema: CollectionSchema = {
+  name: 'poll_votes',
+  columns: [
+    text('pollId', { required: true, immutable: true }),
+    text('roomId', { required: true, immutable: true }),
+    text('userId', { required: true, immutable: true }),
+    num('choiceIndex', { required: true }),
+  ],
+  uniqueOn: ['pollId', 'userId'],
+  ownerField: 'userId',
   permissions: serverWritten('own'),
 }
 

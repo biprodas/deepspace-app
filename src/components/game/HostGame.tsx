@@ -58,7 +58,7 @@ export function HostGame({ state }: { state: RoomState }) {
 
       {isReveal ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <RevealPanel question={question} round={round.data} size="lg" />
+          <RevealPanel question={question} round={round.data} size="lg" confused={{}} />
           <section>
             <h2 className="mb-3 font-display text-lg font-bold">Standings</h2>
             <StandingsList standings={standings} names={names} limit={8} online={online} />

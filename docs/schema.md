@@ -165,6 +165,7 @@ model Round {
   sourceQuote  String?
   sourceUrl    String?
   distribution Json?       // number[4]: players per option
+  confusedCount Int @default(0) // players who flagged "still confused" (from RoundFlag)
 
   @@unique([roomId, roundNumber])
 }
@@ -198,6 +199,41 @@ model RoomInvite {
   emailSent   Boolean  @default(false)
 
   @@unique([roomId, key])
+}
+
+/// "Still confused" on a revealed round; each player reads only their own.
+model RoundFlag {
+  recordId String @id
+  roomId   String
+  roundId  String // Round.recordId
+  userId   String // read: 'own'
+
+  @@unique([roundId, userId])
+}
+
+/// A live poll in a room; one open at a time. Counts recomputed from PollVote.
+model Poll {
+  recordId  String    @id
+  roomId    String
+  question  String
+  options   Json      // string[2..6]
+  kind      String    // poll | confidence
+  status    String    // open | closed
+  createdBy String    // User.id (host or co-host)
+  counts    Json      // number[]: votes per option
+  createdAt DateTime
+  closedAt  DateTime?
+}
+
+/// Each player reads only their own vote.
+model PollVote {
+  recordId    String @id
+  pollId      String // Poll.recordId
+  roomId      String
+  userId      String // read: 'own'
+  choiceIndex Int
+
+  @@unique([pollId, userId])
 }
 
 /// Each player reads only their own rows.
@@ -249,6 +285,8 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │         └─< Room ─┬─< Round ─< Answer >── User
       │                   ├─< RoomPlayer >── User
       │                   ├─< RoomInvite >── User (optional)
+      │                   ├─< Poll ─< PollVote >── User
+      │                   ├─< RoundFlag >── User (per Round)
       │                   └─< Standing   >── User
 ```
 

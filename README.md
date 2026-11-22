@@ -105,8 +105,12 @@ Repeat with `player3@deepspace.test` / `"Player Three"`. Check them with
 ```bash
 npm run validate
 npx deepspace test run all
-git commit -am "..."        # deploy records the commit
-npx deepspace deploy        # ships to https://<app-name>.app.space
+git push origin main
+npx deepspace deploy
+git tag vX.Y.Z && git push origin vX.Y.Z
+
+# Roll back
+npx deepspace rollback
 ```
 
 ## Monitoring

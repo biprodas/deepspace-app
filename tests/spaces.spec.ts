@@ -82,3 +82,33 @@ test('a game hosted in a space shows on the space page', async ({ users }) => {
   await expect(ownerUser.page.getByTestId('space-games')).toContainText(room!.code, { timeout: 15_000 })
   await owner('endRoom', { roomId: room!.roomId })
 })
+
+test('notes and boards open in focus mode and show who is working where', async ({ users }) => {
+  const [ownerUser, memberUser] = await users(2)
+  const owner = await actionsAs(ownerUser.page)
+  const member = await actionsAs(memberUser.page)
+  const space = await createTestSpace(owner, 'Who is where')
+  await member('joinSpace', { code: space.code })
+  const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId: space.spaceId, title: 'Week 3' })
+  const { data: board } = await owner<{ boardId: string }>('createBoard', { spaceId: space.spaceId, title: 'Sketch' })
+  const noteUrl = `/spaces/${space.spaceId}/notes/${note!.noteId}`
+
+  // Both in the same note: the space bar replaces the app nav and lists them together.
+  await ownerUser.page.goto(noteUrl)
+  await memberUser.page.goto(noteUrl)
+  await expect(ownerUser.page.getByTestId('space-focus-bar')).toBeVisible({ timeout: 15_000 })
+  await expect(ownerUser.page.getByTestId('app-navigation')).toHaveCount(0)
+  await expect(ownerUser.page.getByTestId('space-avatars')).toHaveAttribute('aria-label', /2 of 2 online/, {
+    timeout: 15_000,
+  })
+  await ownerUser.page.getByTestId('space-avatars').click()
+  await expect(ownerUser.page.getByTestId('space-roster')).toContainText('Here with you · 2', { timeout: 15_000 })
+  await ownerUser.page.keyboard.press('Escape')
+
+  // The owner moves to a board; the member, back on the space page (with its nav), sees where.
+  await ownerUser.page.goto(`/spaces/${space.spaceId}/boards/${board!.boardId}`)
+  await memberUser.page.goto(`/spaces/${space.spaceId}`)
+  await expect(memberUser.page.getByTestId('app-navigation')).toBeVisible({ timeout: 15_000 })
+  await memberUser.page.getByTestId('space-avatars').click()
+  await expect(memberUser.page.getByTestId('space-roster')).toContainText('In Sketch', { timeout: 15_000 })
+})

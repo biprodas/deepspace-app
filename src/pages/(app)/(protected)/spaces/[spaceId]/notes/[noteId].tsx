@@ -2,14 +2,16 @@
  * A shared note in a study space: /spaces/:spaceId/notes/:noteId
  * (docs/features.md F14). Every member edits live; the title saves on blur;
  * "Make a quiz" (top right) turns the note into a reviewed quiz. The note
- * is a bordered page on a tinted desk, so the writing area is obvious.
+ * is a bordered page on a tinted desk, so the writing area is obvious. The
+ * app navigation gives way to the space bar (focus mode), which shows who is
+ * online and who is in this note.
  */
 
-import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from 'deepspace'
 import type { Editor } from '@tiptap/react'
-import { ArrowLeft, MoreHorizontal, SearchX, Sparkles, Trash2 } from 'lucide-react'
+import { MoreHorizontal, SearchX, Sparkles, Trash2 } from 'lucide-react'
 import {
   Button,
   ConfirmModal,
@@ -21,19 +23,26 @@ import {
 } from '@/components/ui'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { QuizFromNoteModal } from '@/components/notes/QuizFromNoteModal'
+import { SpaceFocusBar } from '@/components/space/SpaceFocusBar'
+import { useFocusMode } from '@/lib/focus-mode'
 import { NOTE_TITLE_MAX } from '@/lib/game-rules'
 import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
+import { useSpace } from '@/lib/use-space'
 import type { Note } from '@/schemas/note-schemas'
-import type { Space } from '@/schemas/space-types'
 
 export default function NotePage() {
   const { spaceId = '', noteId = '' } = useParams()
   const navigate = useNavigate()
   const { records, status } = useQuery<Note>('documents', { where: { recordId: noteId }, limit: 1 })
   const note = records[0]
-  const spaces = useQuery<Space>('spaces', { where: { recordId: spaceId }, limit: 1 })
-  const space = spaces.records[0]
+  // The note's location is shared on the space's presence, so members see who's in which note.
+  const location = useMemo(
+    () => (note ? { kind: 'note' as const, id: noteId, title: note.data.title } : undefined),
+    [note, noteId],
+  )
+  const spaceState = useSpace(spaceId, location)
+  useFocusMode(!!note)
   const { run, pending } = useAction()
   const [makingQuiz, setMakingQuiz] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -56,26 +65,11 @@ export default function NotePage() {
 
   return (
     <>
+      <SpaceFocusBar state={spaceState} section="notes" />
       {/* The "desk": a tinted surface the page sits on, so the writing area reads as one sheet. */}
-      <div className="min-h-[calc(100dvh-3.5rem)] bg-muted/40 pb-16">
+      <div className="min-h-[calc(100dvh-3rem)] bg-muted/40 pb-16">
         <header className="mx-auto flex max-w-4xl items-center gap-x-3 gap-y-2 px-4 pb-4 pt-5 sm:px-2">
-          <Link
-            to={`/spaces/${spaceId}?tab=notes`}
-            aria-label="Back to the space"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <ArrowLeft className="size-5" />
-          </Link>
           <div className="min-w-0 flex-1">
-            <nav aria-label="Breadcrumb" className="truncate px-2 text-xs text-muted-foreground">
-              <Link to={`/spaces/${spaceId}`} className="hover:text-foreground hover:underline">
-                {space?.data.name ?? 'Space'}
-              </Link>
-              <span aria-hidden="true"> / </span>
-              <Link to={`/spaces/${spaceId}?tab=notes`} className="hover:text-foreground hover:underline">
-                Notes
-              </Link>
-            </nav>
             <input
               key={note.data.title}
               defaultValue={note.data.title}

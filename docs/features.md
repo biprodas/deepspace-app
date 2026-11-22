@@ -168,6 +168,10 @@ Build these end to end before anything in section 2.
   A space is a DeepSpace *team*: space rows carry `teamId` and are readable
   only by active `team_members` rows (the SDK's `'team'` rule), so
   non-members never receive them. Notes and boards (later) use the same rule.
+  Note and board pages open in focus mode, like a live game: a slim space
+  bar replaces the app navigation, with the members online and who is in
+  the same note or board (locations are presence state, nothing stored).
+  The space page itself keeps the app navigation and shows the same stack.
   **Done when:** a non-member gets nothing for a space id, joining by link
   shows it, a removed member loses it and can't rejoin.
 - **F14. Shared notes in a space:** members write notes together live

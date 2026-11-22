@@ -25,6 +25,7 @@ import {
 import { CreateSpaceModal } from '@/components/space/CreateSpaceModal'
 import { SpaceBoards } from '@/components/space/SpaceBoards'
 import { SpaceGames } from '@/components/space/SpaceGames'
+import { SpaceAvatars } from '@/components/space/SpaceAvatars'
 import { SpaceInviteButton } from '@/components/space/SpaceInviteButton'
 import { SpaceMembers } from '@/components/space/SpaceMembers'
 import { SpaceNotes } from '@/components/space/SpaceNotes'
@@ -81,6 +82,7 @@ export default function SpacePage() {
             {space.data.code}
             {copied ? <Check className="size-3.5 text-correct" aria-hidden="true" /> : <Copy className="size-3.5 text-muted-foreground" aria-hidden="true" />}
           </button>
+          <SpaceAvatars state={state} />
           <SpaceInviteButton state={state} />
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Space options" />}>

@@ -1,13 +1,15 @@
 /**
  * A board in a study space: /spaces/:spaceId/boards/:boardId
  * (docs/features.md F15). Members draw together; a generated mind map is
- * drawn once by whoever generated it, then edited like any board.
+ * drawn once by whoever generated it, then edited like any board. The app
+ * navigation gives way to the space bar (focus mode), which shows who is
+ * online and who is on this board.
  */
 
 import { useCallback, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
-import { ArrowLeft, MoreHorizontal, SearchX, Trash2 } from 'lucide-react'
+import { MoreHorizontal, SearchX, Trash2 } from 'lucide-react'
 import {
   Button,
   ConfirmModal,
@@ -18,10 +20,13 @@ import {
   EmptyState,
 } from '@/components/ui'
 import { CanvasView } from '@/components/boards/CanvasView'
+import { SpaceFocusBar } from '@/components/space/SpaceFocusBar'
+import { useFocusMode } from '@/lib/focus-mode'
 import { BOARD_TITLE_MAX } from '@/lib/game-rules'
 import { layoutMindMap, mindMapSchema } from '@/lib/mindmap'
 import { usePageTitle } from '@/lib/page-title'
 import { useAction } from '@/lib/use-action'
+import { useSpace } from '@/lib/use-space'
 import type { Board } from '@/schemas/board-schemas'
 
 /** Where layoutMindMap puts the root; the view starts centred there. */
@@ -45,6 +50,14 @@ export default function BoardPage() {
   }, [board, user?.id])
   const onDrawn = useCallback(() => void run('markMindMapDrawn', { boardId }), [run, boardId])
 
+  // The board's location is shared on the space's presence, so members see who's on which board.
+  const location = useMemo(
+    () => (board ? { kind: 'board' as const, id: boardId, title: board.data.title } : undefined),
+    [board, boardId],
+  )
+  const spaceState = useSpace(spaceId, location)
+  useFocusMode(!!board)
+
   const back = `/spaces/${spaceId}?tab=boards`
 
   if (status === 'loading' && !board) {
@@ -62,11 +75,9 @@ export default function BoardPage() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] flex-col">
+    <div className="flex h-full flex-col">
+      <SpaceFocusBar state={spaceState} section="boards" />
       <header className="flex items-center gap-2 border-b border-border px-4 py-2">
-        <Link to={back} aria-label="Back to the space" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
-          <ArrowLeft className="size-5" />
-        </Link>
         <input
           key={board.data.title}
           defaultValue={board.data.title}

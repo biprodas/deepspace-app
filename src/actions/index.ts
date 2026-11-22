@@ -6,12 +6,14 @@ import { inviteActions } from './invite'
 import { pollActions } from './poll'
 import { quizActions } from './quiz'
 import { roomActions } from './room'
+import { spaceActions } from './space'
 
 const registry = {
   ...quizActions,
   ...roomActions,
   ...inviteActions,
   ...pollActions,
+  ...spaceActions,
   ...gameActions,
   ...adminActions,
 }

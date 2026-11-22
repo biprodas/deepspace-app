@@ -19,6 +19,8 @@ export const roomsSchema: CollectionSchema = {
     text('currentRoundId'),
     time('startedAt'),
     time('completedAt'),
+    /** The study space this game belongs to, if any (docs/features.md F13). */
+    text('spaceId', { immutable: true }),
   ],
   uniqueOn: ['code'],
   permissions: serverWritten(true),

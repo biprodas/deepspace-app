@@ -28,6 +28,7 @@ import {
   roundsSchema,
   standingsSchema,
 } from './schemas/game-schemas'
+import { spaceInvitesSchema, spacesSchema, teamMembersSchema } from './schemas/space-schemas'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
@@ -46,4 +47,7 @@ export const schemas: CollectionSchema[] = [
   answersSchema,
   standingsSchema,
   leaderboardSchema,
+  spacesSchema,
+  teamMembersSchema,
+  spaceInvitesSchema,
 ]

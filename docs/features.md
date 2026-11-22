@@ -159,6 +159,17 @@ Build these end to end before anything in section 2.
   free text to moderate.
   **Done when:** a player's vote shows in both browsers' counts, a closed poll
   refuses votes, and a host can't vote.
+- **F13. Study spaces:** a long-lived home for a study group (`/spaces`).
+  The owner creates a space and shares its code or link, or invites by
+  account or email (any member can invite). Members see each other live,
+  and the space's games; a member can host one of their quizzes "in" the
+  space (`rooms.spaceId`). Owners edit, delete, and remove members (who then
+  can't rejoin with the code); members leave and may rejoin.
+  A space is a DeepSpace *team*: space rows carry `teamId` and are readable
+  only by active `team_members` rows (the SDK's `'team'` rule), so
+  non-members never receive them. Notes and boards (later) use the same rule.
+  **Done when:** a non-member gets nothing for a space id, joining by link
+  shows it, a removed member loses it and can't rejoin.
 
 ## 3. Deliberately left out (explain in the write-up)
 
@@ -209,6 +220,10 @@ Key points:
 | `createPoll` / `closePoll` | host / co-host | Open a poll (closing any open one) / close it |
 | `votePoll` | player | Cast or change a vote; recompute the poll's counts |
 | `flagConfused` | player | Mark a revealed question "still confused"; recompute the round's count |
+| `createSpace` / `updateSpace` / `deleteSpace` | member / owner / owner | Space with a join code and the owner's membership / rename / delete with memberships and invites |
+| `joinSpace` / `leaveSpace` | member | Join by code (refuses removed members) / leave (can rejoin) |
+| `removeMember` | owner | Mark a membership removed |
+| `inviteToSpace` | space member | Invite by account or email, as `invitePlayers` does for games |
 
 Every host-only action checks the caller against the room on the server.
 

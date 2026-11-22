@@ -93,6 +93,8 @@ export interface Room {
   currentRoundId?: string
   startedAt?: number
   completedAt?: number
+  /** The study space this game belongs to, if any. */
+  spaceId?: string
 }
 
 export interface Round {

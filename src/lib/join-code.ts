@@ -20,6 +20,11 @@ export function joinPath(code: string): string {
   return `/join/${code}`
 }
 
+/** A study space's join link; space codes use the same alphabet as room codes. */
+export function spaceJoinPath(code: string): string {
+  return `/spaces/join/${code}`
+}
+
 /** No 0/O, 1/I/L: codes are read off a projector and typed on a phone. */
 export const JOIN_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 

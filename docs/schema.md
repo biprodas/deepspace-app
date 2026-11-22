@@ -143,6 +143,7 @@ model Room {
   currentRoundId String?    // Round.recordId
   startedAt      DateTime?
   completedAt    DateTime?
+  spaceId        String?   // Space.recordId when hosted in a study space
 }
 
 /// One row per question played in a room. Readable by all members:
@@ -236,6 +237,48 @@ model PollVote {
   @@unique([pollId, userId])
 }
 
+/// A study space; a DeepSpace team. read: 'team' (owner or active TeamMember).
+model Space {
+  recordId    String   @id
+  name        String
+  description String?
+  ownerId     String   // User.id
+  code        String   @unique
+  teamId      String   // = recordId; the 'team' rule matches against it
+  createdAt   DateTime
+}
+
+/// Membership. The SDK's 'team' rule reads this collection by name.
+model TeamMember {     // collection: team_members
+  recordId    String   @id
+  teamId      String   // Space.recordId
+  userId      String   // User.id
+  displayName String
+  role        String   // owner | member
+  status      String   // active | removed (removed can't rejoin)
+  joinedAt    DateTime
+
+  @@unique([teamId, userId])
+}
+
+/// Like RoomInvite, for a space; only the invitee reads it.
+model SpaceInvite {
+  recordId    String   @id
+  spaceId     String
+  code        String
+  spaceName   String
+  invitedBy   String
+  inviterName String
+  key         String
+  email       String?
+  inviteeId   String?
+  status      String   // pending | accepted | dismissed
+  invitedAt   DateTime
+  emailSent   Boolean  @default(false)
+
+  @@unique([spaceId, key])
+}
+
 /// Each player reads only their own rows.
 model Answer {
   recordId    String  @id
@@ -288,6 +331,9 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │                   ├─< Poll ─< PollVote >── User
       │                   ├─< RoundFlag >── User (per Round)
       │                   └─< Standing   >── User
+      └─< Space ─┬─< TeamMember >── User
+                 ├─< SpaceInvite >── User (optional)
+                 └─< Room (optional spaceId)
 ```
 
 References are plain id columns. Assume no foreign-key enforcement (the

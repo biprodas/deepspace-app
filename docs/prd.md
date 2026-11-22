@@ -53,7 +53,10 @@ self-study without a host.
 
 **Non-goals**
 - Competing with Kahoot on breadth (question types, themes, media).
-- Monetisation, public discovery, or social features.
+- Monetisation, public discovery, or open social features. (Private study
+  spaces for a known group, with polls and reactions, were added after the
+  first release; see features.md F12–F13. There's still no public feed,
+  following, or free-text chat.)
 - Self-paced or asynchronous quizzes.
 - Fully automatic quizzes with no human review.
 

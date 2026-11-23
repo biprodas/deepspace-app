@@ -12,7 +12,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react'
-import { useCanvas, useUserLookup, type CanvasShapeClient } from 'deepspace'
+import { getUserColor, useCanvas, usePresenceRoom, useUserLookup, type CanvasShapeClient } from 'deepspace'
 import { Download, Maximize, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { ConfirmModal } from '@/components/ui'
 import type { LaidOutShape } from '@/lib/mindmap'
@@ -82,8 +82,8 @@ type Gesture =
   | { kind: 'pinch'; d0: number; m0: Point; view: View }
   | { kind: 'erase'; last: Point; ids: Set<string> }
 
-// User colors for multi-user cursors
-const CURSOR_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6']
+/** Live cursors are sent at most this often; peers ease between updates over the same time. */
+const CURSOR_SEND_MS = 40
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
 /** Screen pixels a press may wander and still count as a click. */
@@ -184,7 +184,6 @@ export function CanvasView({
 }: CanvasViewProps) {
   const {
     shapes,
-    viewports,
     connected,
     canWrite,
     addShape,
@@ -192,10 +191,15 @@ export function CanvasView({
     moveShape: sendMove,
     resizeShape: sendResize,
     deleteShape,
-    setViewport,
     undo,
     redo,
   } = useCanvas(docId)
+  // Live cursors go over presence, in board coordinates, so each one sits at
+  // the same spot on the board whatever the viewer's pan and zoom. (The canvas
+  // room's viewports carry only pan and zoom: a cursor drawn from them moved
+  // only when its owner panned.) The presence route checks sign-in only, but a
+  // board's id reaches nobody outside its space.
+  const { peers, updateState } = usePresenceRoom(`board:${docId}`)
 
   const [tool, setTool] = useState<CanvasTool>('select')
   const [style, setStyle] = useState<CanvasStyle>({
@@ -314,19 +318,38 @@ export function CanvasView({
     onDrawn?.()
   }, [drawOnce, connected, canWrite, shapes.length, addShape, onDrawn])
 
-  // Report viewport on pan/zoom change
-  useEffect(() => {
-    const svg = svgRef.current
-    if (!svg) return
-    const rect = svg.getBoundingClientRect()
-    setViewport({
-      x: -view.x / view.zoom,
-      y: -view.y / view.zoom,
-      width: rect.width / view.zoom,
-      height: rect.height / view.zoom,
-      zoom: view.zoom,
-    })
-  }, [view, setViewport])
+  /**
+   * Sends where this pointer is on the board (null: off it), at most every
+   * CURSOR_SEND_MS. The last position always goes out, so a cursor that stops
+   * stops where it really is.
+   */
+  const cursorSend = useRef<{ last: number; timer?: number; next: Point | null }>({ last: 0, next: null })
+  const sendCursor = useCallback(
+    (point: Point | null) => {
+      const c = cursorSend.current
+      c.next = point && { x: Math.round(point.x), y: Math.round(point.y) }
+      if (c.timer !== undefined) return
+      c.timer = window.setTimeout(() => {
+        c.timer = undefined
+        c.last = Date.now()
+        updateState({ cursor: c.next })
+      }, Math.max(0, c.last + CURSOR_SEND_MS - Date.now()))
+    },
+    [updateState],
+  )
+  useEffect(() => () => window.clearTimeout(cursorSend.current.timer), [])
+
+  /** Peers whose pointer is on the board. */
+  const cursors = useMemo(
+    () =>
+      peers.flatMap((p) => {
+        const c = p.state.cursor as { x?: unknown; y?: unknown } | null | undefined
+        return c && typeof c.x === 'number' && typeof c.y === 'number'
+          ? [{ key: `${p.userId}:${p.joinedAt}`, userId: p.userId, name: p.userName, x: c.x, y: c.y }]
+          : []
+      }),
+    [peers],
+  )
 
   // A shape deleted elsewhere (or undone) can't stay selected or open for editing. A shape
   // this client just added isn't in `shapes` until the room sends it back, so it waits.
@@ -1121,6 +1144,8 @@ export function CanvasView({
         className="h-full w-full select-none"
         style={{ cursor, touchAction: 'none' }}
         onPointerDown={onPointerDown}
+        onPointerMove={(e) => sendCursor(toCanvas(e.clientX, e.clientY))}
+        onPointerLeave={() => sendCursor(null)}
         onDoubleClick={onDoubleClick}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -1204,28 +1229,43 @@ export function CanvasView({
             </g>
           )}
 
-          {/* Other users' cursors */}
-          {viewports.map((vp, i) => (
-            <g key={vp.userId} pointerEvents="none">
-              {/* Cursor dot */}
-              <circle
-                cx={vp.x + vp.width / 2}
-                cy={vp.y + 20}
-                r={4 / zoom}
-                fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
-              />
-              {/* User label */}
-              <text
-                x={vp.x + vp.width / 2 + 8 / zoom}
-                y={vp.y + 24 / zoom}
-                fontSize={11 / zoom}
-                fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
-                fontFamily="system-ui, sans-serif"
+          {/* Other members' cursors: at their pointer on the board, screen-sized at any zoom */}
+          {cursors.map((c) => {
+            const color = getUserColor(c.userId)
+            return (
+              <g
+                key={c.key}
+                data-testid="peer-cursor"
+                pointerEvents="none"
+                style={{
+                  transform: `translate(${c.x}px, ${c.y}px) scale(${1 / zoom})`,
+                  // Eases between updates, which arrive every CURSOR_SEND_MS.
+                  transition: `transform ${CURSOR_SEND_MS * 2}ms linear`,
+                }}
               >
-                {getName(vp.userId) ?? 'Member'}
-              </text>
-            </g>
-          ))}
+                <path
+                  d="M0 0 L0 17 L4.6 12.8 L7.6 19.6 L10.4 18.4 L7.4 11.6 L13.4 11.6 Z"
+                  fill={color}
+                  stroke="white"
+                  strokeWidth={1.2}
+                  strokeLinejoin="round"
+                />
+                <text
+                  x={15}
+                  y={26}
+                  fontSize={12}
+                  fontWeight={600}
+                  fill={color}
+                  stroke="white"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  fontFamily="system-ui, sans-serif"
+                >
+                  {getName(c.userId) ?? c.name ?? 'Member'}
+                </text>
+              </g>
+            )
+          })}
         </g>
       </svg>
     </div>

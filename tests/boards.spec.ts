@@ -79,6 +79,43 @@ test('a shape one member draws appears for the other; leaving takes the board aw
   expect(await canvasSocket(memberUser.page, 'not-a-board')).toBe('refused')
 })
 
+test('a member’s cursor follows their pointer on the other member’s board, and goes when they leave it', async ({
+  users,
+}) => {
+  const [ownerUser, memberUser] = await users(2)
+  const owner = await actionsAs(ownerUser.page)
+  const member = await actionsAs(memberUser.page)
+  const { spaceId } = await spaceWithMember(owner, member, 'Boards cursors')
+  const { data } = await owner<{ boardId: string }>('createBoard', { spaceId, title: 'Cursors' })
+  const url = `/spaces/${spaceId}/boards/${data!.boardId}`
+  await ownerUser.page.goto(url)
+  await memberUser.page.goto(url)
+  await expect(ownerUser.page.getByTestId('canvas-view')).toContainText('Connected', { timeout: 20_000 })
+  await expect(memberUser.page.getByTestId('canvas-view')).toContainText('Connected', { timeout: 20_000 })
+
+  // Same window size and an empty board: both views start identical, so a
+  // board point is the same screen point on both pages.
+  const box = (await ownerUser.page.getByTestId('canvas-svg').boundingBox())!
+  const seen = memberUser.page.getByTestId('peer-cursor')
+  const at = async () => {
+    const b = await seen.boundingBox()
+    return b && { x: Math.round(b.x), y: Math.round(b.y) }
+  }
+  for (const [dx, dy] of [[200, 150], [520, 330]]) {
+    await ownerUser.page.mouse.move(box.x + dx, box.y + dy, { steps: 8 })
+    await expect
+      .poll(async () => {
+        const p = await at()
+        return p && Math.hypot(p.x - (box.x + dx), p.y - (box.y + dy)) <= 3
+      }, { timeout: 10_000 })
+      .toBe(true)
+  }
+
+  // Off the board: the cursor goes.
+  await ownerUser.page.mouse.move(box.x + 200, Math.max(0, box.y - 20))
+  await expect(seen).toHaveCount(0, { timeout: 10_000 })
+})
+
 test('only members create boards', async ({ users }) => {
   const [ownerUser, outsiderUser] = await users(2)
   const owner = await actionsAs(ownerUser.page)

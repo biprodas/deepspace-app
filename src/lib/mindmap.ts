@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod'
+import { textHeight, textWidth } from './canvas-shapes'
 import { normalizeForMatch } from './generation'
 
 export const MINDMAP_MAX_BRANCHES = 6
@@ -33,12 +34,15 @@ export type MindMap = z.infer<typeof mindMapSchema>
 
 export function buildMindMapPrompt(topic: string, text: string): { system: string; user: string } {
   const system = [
-    'You turn study material into a revision mind map.',
+    'You turn study material into a revision mind map that a student can read at a glance.',
     `Return only JSON: {"root": string, "branches": [{"label": string, "quote": string, "children": string[]}]}.`,
-    `root is the topic in a few words. 3 to ${MINDMAP_MAX_BRANCHES} branches for the main ideas,`,
-    `each with up to ${MINDMAP_MAX_CHILDREN} children for key facts or terms.`,
-    `Every label is at most ${MINDMAP_LABEL_MAX} characters: a short phrase, not a sentence.`,
-    'quote is one sentence copied exactly from the source that supports the branch.',
+    'root: the topic itself, 1 to 3 words.',
+    `branches: 4 to ${MINDMAP_MAX_BRANCHES} of the topic's main ideas, in a sensible study order,`,
+    'with distinct, non-overlapping labels of 1 to 4 words in the same grammatical form (e.g. all nouns).',
+    `children: 2 to ${MINDMAP_MAX_CHILDREN} per branch, each a specific fact, term, example or figure from the source,`,
+    'in 2 to 6 words. A child adds information: never repeat the root or its branch label, and no two children say the same thing.',
+    `Every label is at most ${MINDMAP_LABEL_MAX} characters, with no trailing full stop.`,
+    'quote: one sentence copied exactly from the source that supports the branch.',
     'Use only what the source says.',
   ].join(' ')
   const user = `Topic: ${topic}\n\nSource:\n${text}`
@@ -57,13 +61,15 @@ export function clampLabel(text: string): string {
 /**
  * Fits a model reply to the limits instead of rejecting it for small
  * overruns: long labels are shortened, extra branches and children are
- * dropped, and over-long quotes are left out. What can't be fixed (no
+ * dropped, duplicates and full stops go, and over-long quotes are left out. What can't be fixed (no
  * root, fewer than two branches) still fails validation.
  */
 function coerceMindMap(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw
   const r = raw as { root?: unknown; branches?: unknown }
-  const asLabel = (v: unknown) => (typeof v === 'string' && v.trim() ? clampLabel(v) : undefined)
+  const asLabel = (v: unknown) =>
+    typeof v === 'string' && v.trim() ? clampLabel(v.trim().replace(/\.$/, '')) : undefined
+  const key = (label: string | undefined) => (label ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '')
   const branches = Array.isArray(r.branches) ? r.branches : []
   return {
     root: asLabel(r.root),
@@ -71,13 +77,21 @@ function coerceMindMap(raw: unknown): unknown {
       .map((b) => {
         const branch = (b ?? {}) as { label?: unknown; quote?: unknown; children?: unknown }
         const children = Array.isArray(branch.children) ? branch.children : []
+        const label = asLabel(branch.label)
+        // Children that repeat the branch, or each other, add nothing to the map.
+        const seen = new Set([key(label)])
+        const unique = children.map(asLabel).filter((c): c is string => {
+          if (!c || seen.has(key(c))) return false
+          seen.add(key(c))
+          return true
+        })
         return {
-          label: asLabel(branch.label),
+          label,
           quote: typeof branch.quote === 'string' && branch.quote.length <= 240 ? branch.quote : undefined,
-          children: children.map(asLabel).filter(Boolean).slice(0, MINDMAP_MAX_CHILDREN),
+          children: unique.slice(0, MINDMAP_MAX_CHILDREN),
         }
       })
-      .filter((b) => b.label)
+      .filter((b, i, all) => b.label && all.findIndex((o) => key(o.label) === key(b.label)) === i)
       .slice(0, MINDMAP_MAX_BRANCHES),
   }
 }
@@ -108,7 +122,7 @@ export function parseMindMap(reply: string, sourceText: string): MindMap {
 // ─── Layout ──────────────────────────────────────────────
 
 export interface LaidOutShape {
-  type: 'text' | 'line'
+  type: 'text' | 'connector'
   x: number
   y: number
   width: number
@@ -116,52 +130,110 @@ export interface LaidOutShape {
   props: Record<string, unknown>
 }
 
-const NODE_HEIGHT = 36
-const BRANCH_RADIUS = 280
-const CHILD_RADIUS = 190
-/** Spread of a branch's children around its direction, in radians. */
-const CHILD_SPREAD = 0.9
 const BRANCH_COLORS = ['#2563eb', '#16a34a', '#d97706', '#9333ea', '#db2777', '#0891b2']
+const INK = '#1e293b'
 
-/** Roughly fits the label at the canvas's 14px font. */
-export const nodeWidth = (text: string) => Math.min(340, Math.max(90, Math.round(text.length * 7.8 + 28)))
+/** How each level of the map looks: font, card padding, widest card before the label wraps. */
+const LEVELS = {
+  root: { fontSize: 20, fontWeight: 700, padding: 16, maxWidth: 260, radius: 16 },
+  branch: { fontSize: 15, fontWeight: 600, padding: 11, maxWidth: 210, radius: 12 },
+  child: { fontSize: 14, fontWeight: 400, padding: 9, maxWidth: 230, radius: 10 },
+} as const
 
-function node(text: string, cx: number, cy: number, stroke: string, fill: string): LaidOutShape {
-  const width = nodeWidth(text)
-  return { type: 'text', x: cx - width / 2, y: cy - NODE_HEIGHT / 2, width, height: NODE_HEIGHT, props: { text, stroke, fill } }
+/** Gaps: root to branches, branch to its children, between children, between branch blocks. */
+const GAP = { root: 80, child: 56, childRow: 10, branchBlock: 30 }
+
+/** `color` mixed toward white by `amount` (0–1), as an opaque hex. */
+export function pastel(color: string, amount: number): string {
+  const n = parseInt(color.slice(1), 16)
+  const mix = (c: number) => Math.round(c + (255 - c) * amount)
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(mix)
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`
 }
 
-function line(x1: number, y1: number, x2: number, y2: number, stroke: string): LaidOutShape {
-  return { type: 'line', x: x1, y: y1, width: x2 - x1, height: y2 - y1, props: { stroke, strokeWidth: 2, fill: 'transparent' } }
+/** A card for `text`, sized to fit it: as wide as the label up to the level's limit, then wrapped. */
+function card(text: string, level: keyof typeof LEVELS, style: Record<string, unknown>): LaidOutShape {
+  const { fontSize, fontWeight, padding, maxWidth, radius } = LEVELS[level]
+  const width = Math.min(maxWidth, Math.ceil(textWidth(text, fontSize, fontWeight)) + padding * 2 + 2)
+  const shape: LaidOutShape = {
+    type: 'text',
+    x: 0,
+    y: 0,
+    width,
+    height: 0,
+    props: { text, fontSize, fontWeight, padding, radius, align: 'center', ...style },
+  }
+  shape.height = textHeight(shape)
+  return shape
+}
+
+function connector(x1: number, y1: number, x2: number, y2: number, stroke: string, strokeWidth: number): LaidOutShape {
+  return {
+    type: 'connector',
+    x: x1,
+    y: y1,
+    width: x2 - x1,
+    height: y2 - y1,
+    props: { stroke, strokeWidth, fill: 'transparent' },
+  }
 }
 
 /**
- * A radial layout around (cx, cy): the root in the middle, branches on a
- * circle, each branch's children fanned out beyond it. Lines come first so
- * they draw under the nodes.
+ * A balanced left–right layout around (cx, cy), like a printed mind map:
+ * the root in the middle, the first half of the branches on the right and
+ * the rest on the left, each branch's children stacked beside it. Every
+ * card is sized from its measured text and each branch gets a block as
+ * tall as its children, so nothing overlaps however long the labels are.
+ * Connectors run edge to edge and come first, so they draw under the cards.
  */
 export function layoutMindMap(map: MindMap, cx = 600, cy = 420): LaidOutShape[] {
-  const lines: LaidOutShape[] = []
-  const nodes: LaidOutShape[] = [node(map.root, cx, cy, '#ffffff', '#4338ca')]
-  const n = map.branches.length
-  map.branches.forEach((branch, i) => {
-    const color = BRANCH_COLORS[i % BRANCH_COLORS.length]
-    // Start at the top and go clockwise, so the first branch reads first.
-    const angle = -Math.PI / 2 + (2 * Math.PI * i) / n
-    const bx = cx + BRANCH_RADIUS * Math.cos(angle)
-    const by = cy + BRANCH_RADIUS * Math.sin(angle)
-    lines.push(line(cx, cy, bx, by, color))
-    nodes.push(node(branch.label, bx, by, color, '#ffffff'))
+  const links: LaidOutShape[] = []
+  const cards: LaidOutShape[] = []
 
-    const k = branch.children.length
-    branch.children.forEach((child, j) => {
-      const offset = k === 1 ? 0 : -CHILD_SPREAD / 2 + (CHILD_SPREAD * j) / (k - 1)
-      const ca = angle + offset
-      const x = bx + CHILD_RADIUS * Math.cos(ca)
-      const y = by + CHILD_RADIUS * Math.sin(ca)
-      lines.push(line(bx, by, x, y, color))
-      nodes.push(node(child, x, y, color, 'transparent'))
-    })
+  const root = card(map.root, 'root', { stroke: '#ffffff', fill: '#4338ca' })
+  root.x = cx - root.width / 2
+  root.y = cy - root.height / 2
+  cards.push(root)
+
+  const blocks = map.branches.map((branch, i) => {
+    const color = BRANCH_COLORS[i % BRANCH_COLORS.length]
+    const node = card(branch.label, 'branch', { stroke: INK, fill: pastel(color, 0.78), border: color })
+    const children = branch.children.map((c) =>
+      card(c, 'child', { stroke: INK, fill: pastel(color, 0.92), border: pastel(color, 0.55) }),
+    )
+    const childrenHeight = children.reduce((h, c) => h + c.height, 0) + GAP.childRow * Math.max(0, children.length - 1)
+    return { color, node, children, childrenHeight, height: Math.max(node.height, childrenHeight) }
   })
-  return [...lines, ...nodes]
+
+  const half = Math.ceil(blocks.length / 2)
+  for (const [side, dir] of [
+    [blocks.slice(0, half), 1],
+    [blocks.slice(half), -1],
+  ] as const) {
+    const total = side.reduce((h, b) => h + b.height, 0) + GAP.branchBlock * Math.max(0, side.length - 1)
+    let top = cy - total / 2
+    for (const block of side) {
+      const mid = top + block.height / 2
+      const { node, children, color } = block
+      // Branch: its near edge GAP.root beyond the root's side.
+      const near = cx + dir * (root.width / 2 + GAP.root)
+      node.x = dir > 0 ? near : near - node.width
+      node.y = mid - node.height / 2
+      links.push(connector(cx + (dir * root.width) / 2, cy, near, mid, color, 3))
+
+      // Children: a column beyond the branch, centred on it.
+      const far = dir > 0 ? node.x + node.width : node.x
+      const childNear = far + dir * GAP.child
+      let y = mid - block.childrenHeight / 2
+      for (const child of children) {
+        child.x = dir > 0 ? childNear : childNear - child.width
+        child.y = y
+        links.push(connector(far, mid, childNear, y + child.height / 2, color, 2))
+        y += child.height + GAP.childRow
+      }
+      cards.push(node, ...children)
+      top += block.height + GAP.branchBlock
+    }
+  }
+  return [...links, ...cards]
 }

@@ -192,15 +192,28 @@ Build these end to end before anything in section 2.
   **Done when:** two members see each other's typing, a member who leaves
   gets no note and no socket, and a pinned reveal shows in the session note.
 - **F15. Whiteboards and AI mind maps in a space:** members draw together on
-  a board (rectangles, ellipses, lines, text boxes; each other's cursors with
-  names), using DeepSpace's `canvas` feature. The canvas route admits only
+  a board (pen, rectangles, ellipses, arrows, lines, text boxes, sticky
+  notes; each other's cursors with names), using DeepSpace's `canvas`
+  feature. Colour, stroke and fill; resize handles; text written in place;
+  duplicate, copy and paste; an eraser that removes whatever it's dragged
+  over; "Clear board" (confirmed, with a one-click Restore for 15 seconds);
+  rename or delete a board from the space's list (delete: its creator or the
+  space owner); one-key tool shortcuts; trackpad and pinch zoom,
+  fit to content, and download as PNG. Mouse, pen and touch all draw. A drag
+  is sent once when it ends, so it is one step of undo. The room doesn't
+  echo a move, resize or edit to its author, so the board keeps its own
+  changes over the room's copy until that copy changes. The canvas route admits only
   the board's space members (it used to admit any signed-in user to any id).
-  An AI mind map starts from a Wikipedia topic: Claude drafts a root, 2–6
-  branches and up to 4 children each, the reply is checked and trimmed to
-  fit, quotes not in the article are dropped, and the generator's browser
-  lays it out radially and draws it once; then it's an ordinary board.
-  5 mind maps per user per day (credit guard). Lines don't follow nodes that
-  are moved, and drawing needs a mouse (no touch yet).
+  An AI mind map starts from a Wikipedia topic: Claude drafts a root, 4–6
+  branches of 1–4 words and 2–4 specific children each; the reply is checked
+  and trimmed to fit, repeated labels and quotes not in the article are
+  dropped, and the generator's browser lays it out once: balanced left and
+  right, cards sized to their measured text (long labels wrap), branches
+  spaced by their children so nothing overlaps, curved connectors edge to
+  edge, one colour per branch on opaque cards that read in light and dark.
+  A mind map opens zoomed to fit; then it's an ordinary board.
+  5 mind maps per user per day (credit guard). Lines and arrows don't follow
+  shapes that are moved, and only one shape is selected at a time.
   **Done when:** a member's shape appears for the other, a member who leaves
   gets no board and no socket, and a generated map is drawn once.
 

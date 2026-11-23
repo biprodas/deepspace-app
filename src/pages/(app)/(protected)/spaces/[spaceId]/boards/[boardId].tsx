@@ -9,7 +9,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
-import { BookOpen, MoreHorizontal, SearchX, Trash2 } from 'lucide-react'
+import { BookOpen, Eraser, MoreHorizontal, SearchX, Trash2 } from 'lucide-react'
 import {
   Button,
   ConfirmModal,
@@ -45,7 +45,8 @@ export default function BoardPage() {
 
   // The generated map, laid out, for its creator to draw once.
   const drawOnce = useMemo(() => {
-    if (!board || board.data.kind !== 'mindmap' || board.data.mindMapDrawn || board.data.ownerId !== user?.id) return undefined
+    if (!board || board.data.kind !== 'mindmap' || board.data.mindMapDrawn || board.data.ownerId !== user?.id)
+      return undefined
     const parsed = mindMapSchema.safeParse(board.data.mindMap)
     return parsed.success ? layoutMindMap(parsed.data, MAP_CENTER.x, MAP_CENTER.y) : undefined
   }, [board, user?.id])
@@ -60,6 +61,7 @@ export default function BoardPage() {
   useFocusMode(!!board)
 
   const back = `/spaces/${spaceId}?tab=boards`
+  const canDelete = !!board && !!user && (board.data.ownerId === user.id || spaceState.space?.data.ownerId === user.id)
 
   if (status === 'loading' && !board) {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading board…</div>
@@ -86,7 +88,9 @@ export default function BoardPage() {
         center={board.data.kind === 'mindmap' ? MAP_CENTER : undefined}
         drawOnce={drawOnce}
         onDrawn={onDrawn}
-        header={
+        exportName={board.data.title}
+        fitOnOpen={board.data.kind === 'mindmap'}
+        header={(boardActions) => (
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card/95 py-1 pl-1 pr-1 shadow-sm backdrop-blur">
             <div className="min-w-0 flex-1">
               <input
@@ -109,20 +113,33 @@ export default function BoardPage() {
                 </p>
               )}
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon" className="size-8" aria-label="Board options" />}
-              >
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-40">
-                <DropdownMenuItem onClick={() => setDeleting(true)} className="text-destructive focus:text-destructive">
-                  <Trash2 aria-hidden /> Delete board
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Clearing needs write access; deleting, the board's creator or the space owner (deleteBoard enforces it). */}
+            {(boardActions.canClear || canDelete) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={<Button variant="ghost" size="icon" className="size-8" aria-label="Board options" />}
+                >
+                  <MoreHorizontal />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                  {boardActions.canClear && (
+                    <DropdownMenuItem onClick={boardActions.clear} data-testid="board-clear">
+                      <Eraser aria-hidden /> Clear board
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <DropdownMenuItem
+                      onClick={() => setDeleting(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 aria-hidden /> Delete board
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
-        }
+        )}
       />
 
       <ConfirmModal

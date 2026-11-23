@@ -115,11 +115,11 @@ Full field list: [schema.md](./schema.md).
 | Collection | `read` (member) | Constraints |
 |---|---|---|
 | `quizzes` | `true` | — |
-| `questions` | `true` | — |
+| `questions` | `'own'` via `ownerField: 'ownerId'` (players read a question from its round once asked) | — |
 | `answer_keys` | `'own'` via `ownerField: 'ownerId'` | `uniqueOn [questionId]` |
 | `generations` | `'own'` via `ownerField: 'userId'` | — |
 | `rooms` | `true` | `uniqueOn [code]` |
-| `rounds` | `true` (reveal fields null until reveal) | `uniqueOn [roomId, roundNumber]` |
+| `rounds` | `true` (prompt/options copied at start; reveal fields null until reveal) | `uniqueOn [roomId, roundNumber]` |
 | `room_players` | `true` | `uniqueOn [roomId, userId]` |
 | `answers` | `'own'` via `ownerField: 'userId'` | `uniqueOn [roundId, userId]` |
 | `standings` | `true` | `uniqueOn [roomId, userId]` |
@@ -303,6 +303,7 @@ call, one run at a time per user, and 10 runs per user per rolling 24 h.
 | Threat | Mitigation |
 |---|---|
 | Player reads the correct answer before reveal | Answer only in `answer_keys`, readable by the quiz owner only; RBAC filters it out in the DO before the WebSocket send |
+| Player reads upcoming questions to look them up | `questions` readable by the quiz owner only; `startNextRound` copies the prompt and options onto the round as it starts, so a player receives each question only when it's asked |
 | Host plays and wins with the answer key | `submitAnswer` refuses host and co-hosts |
 | Late answer with a changed device clock | Server compares its own receive time to `deadline` |
 | Double answering / second identity | Sign-in required; `uniqueOn [roundId, userId]`; `userId` from the verified JWT, never from params |

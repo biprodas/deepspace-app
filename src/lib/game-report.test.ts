@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hardestQuestions, questionResults } from './game-report'
+import { askedQuestion, hardestQuestions, questionResults } from './game-report'
 import type { Question, Round } from '../schemas/game-types'
 
 const q = (prompt: string): Question => ({
@@ -45,6 +45,23 @@ describe('questionResults', () => {
       { roundId: 'r2', roundNumber: 2, prompt: 'Hard one?', correctOption: 'b', answered: 4, correct: 1, accuracy: 0.25 },
       { roundId: 'r4', roundNumber: 4, prompt: 'Nobody answered?', correctOption: 'c', answered: 0, correct: 0, accuracy: null },
     ])
+  })
+})
+
+describe('askedQuestion', () => {
+  it('prefers the copy on the round, which is all a player receives', () => {
+    const r = round('r1', 1, { prompt: 'On the round?', options: ['w', 'x', 'y', 'z'] })
+    expect(askedQuestion(r.data, new Map())).toEqual({ prompt: 'On the round?', options: ['w', 'x', 'y', 'z'] })
+  })
+
+  it('falls back to the question row for rounds played before rounds carried it', () => {
+    expect(askedQuestion(round('r1', 1, {}).data, questions)).toMatchObject({ prompt: 'Easy one?' })
+    expect(askedQuestion(round('r1', 1, {}).data, new Map())).toBeUndefined()
+  })
+
+  it('lets a player see results without any question rows', () => {
+    const played = round('r1', 1, { prompt: 'Asked?', options: ['a', 'b', 'c', 'd'], correctIndex: 1, distribution: [0, 2, 0, 0] })
+    expect(questionResults([played], new Map())).toMatchObject([{ prompt: 'Asked?', correctOption: 'b', accuracy: 1 }])
   })
 })
 

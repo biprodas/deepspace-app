@@ -6,11 +6,14 @@
  * alone, which is what makes refresh/reconnect recover (docs/trd.md §5).
  *
  * Permissions decide what arrives: `answers` holds only the viewer's own
- * rows, and a round's reveal fields are empty until the server reveals it.
+ * rows, `questions` only reaches the quiz owner (players read a question
+ * from its round once it's asked), and a round's reveal fields are empty
+ * until the server reveals it.
  */
 
 import { useCallback, useMemo } from 'react'
 import { usePresenceRoom, useQuery, useUser } from 'deepspace'
+import { askedQuestion } from './game-report'
 import type {
   Answer,
   Poll,
@@ -78,6 +81,7 @@ export function useRoom(roomId: string) {
     (emoji: string) => updateState({ reaction: { emoji, id: crypto.randomUUID(), at: Date.now() } }),
     [updateState],
   )
+  const ownerCount = questions.records.filter((q) => q.data.approved).length
   const me = players.records.find((p) => p.data.userId === user?.id)
   const round = rounds.records.find((r) => r.recordId === room?.data.currentRoundId)
 
@@ -107,9 +111,12 @@ export function useRoom(roomId: string) {
     userId: user?.id,
     rounds: rounds.records,
     round,
-    question: round ? questionsById.get(round.data.questionId) : undefined,
+    /** From the round itself: players can't read `questions`, so nothing leaks before it's asked. */
+    question: round ? askedQuestion(round.data, questionsById) : undefined,
+    /** Only the quiz owner receives these; everyone else gets an empty map. */
     questionsById,
-    approvedCount: questions.records.filter((q) => q.data.approved).length,
+    /** Rounds this game will have, or undefined when unknown (a round from before rounds carried it). */
+    questionCount: round?.data.questionCount ?? (ownerCount || undefined),
     standings: standings.records.map((s) => s.data),
     answersByRound,
     /** The room's latest poll, open or closed. */

@@ -17,14 +17,16 @@ test.describe.configure({ timeout: 90_000 })
 const LIMIT_MS = 10_000
 const GRACE_MS = 300
 
-/** A quiz whose explanations are unique strings we can look for on the wire. */
+/** A quiz whose prompts and explanations are unique strings we can look for on the wire. */
 async function setUpGame(host: CallAction, players: CallAction[], questionCount = 2) {
   const secret = `secret-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  // Separate from `secret`, so a prompt never matches the explanation checks.
+  const tag = `prompt-${Math.random().toString(36).slice(2)}`
   const { data: quiz } = await host<{ quizId: string }>('createQuiz', { sourceType: 'manual', title: 'Game test' })
   for (let i = 0; i < questionCount; i++) {
     await host('addQuestion', {
       quizId: quiz!.quizId,
-      prompt: `Question ${i + 1}?`,
+      prompt: `Question ${i + 1}? (${tag}-${i + 1})`,
       options: [`right ${i}`, `wrong a ${i}`, `wrong b ${i}`, `wrong c ${i}`],
       correctIndex: 0,
       explanation: `${secret} explanation ${i + 1}`,
@@ -33,7 +35,7 @@ async function setUpGame(host: CallAction, players: CallAction[], questionCount 
   }
   const { data: room } = await host<{ roomId: string; code: string }>('createRoom', { quizId: quiz!.quizId })
   for (const join of players) await join('joinRoom', { code: room!.code })
-  return { quizId: quiz!.quizId, roomId: room!.roomId, code: room!.code, secret }
+  return { quizId: quiz!.quizId, roomId: room!.roomId, code: room!.code, secret, prompt: (n: number) => `${tag}-${n}` }
 }
 
 async function start(host: CallAction, roomId: string) {
@@ -218,4 +220,34 @@ test.describe('three accounts', () => {
     expect(names).toHaveLength(2)
     expect(names[0]).toContain(aUser.name ?? '')
   })
+})
+
+test('a player receives no question before it is asked', async ({ users }) => {
+  const [hostUser, playerUser] = await users(2)
+  const host = await actionsAs(hostUser.page)
+  const player = await actionsAs(playerUser.page)
+  const { roomId, prompt } = await setUpGame(host, [player], 2)
+
+  const frames = recordFrames(playerUser.page)
+  await playerUser.page.goto(`/rooms/${roomId}`)
+  await expect(playerUser.page.getByText(/You’re in/)).toBeVisible({ timeout: 15_000 })
+  const wire = () => frames.join('\n')
+  // In the lobby: neither question has reached the player.
+  expect(wire()).not.toContain(prompt(1))
+  expect(wire()).not.toContain(prompt(2))
+
+  // Round 1: its question arrives on the round, the next one still doesn't.
+  const q1 = await start(host, roomId)
+  await expect(playerUser.page.getByText(prompt(1))).toBeVisible({ timeout: 10_000 })
+  // The count comes from the round too: the player has no question rows to count.
+  await expect(playerUser.page.getByText('Question 1 of 2', { exact: true })).toBeVisible()
+  expect(wire()).not.toContain(prompt(2))
+
+  const { serverNow } = (await player('getServerTime')).data!
+  await untilRevealable(q1.deadline, serverNow)
+  expect(await host('revealQuestion', { roomId })).toMatchObject({ success: true, data: { status: 'reveal' } })
+  expect(wire()).not.toContain(prompt(2))
+
+  await start(host, roomId)
+  await expect(playerUser.page.getByText(prompt(2))).toBeVisible({ timeout: 10_000 })
 })

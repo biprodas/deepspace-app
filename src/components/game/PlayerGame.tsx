@@ -19,7 +19,7 @@ import { RevealPanel } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
 export function PlayerGame({ state }: { state: RoomState }) {
-  const { room, round, question, me, answersByRound, standings, names, userId, online, approvedCount, flaggedRounds } =
+  const { room, round, question, me, answersByRound, standings, names, userId, online, questionCount, flaggedRounds } =
     state
   const offset = useServerOffset()
   const { run, pending } = useAction()
@@ -70,7 +70,7 @@ export function PlayerGame({ state }: { state: RoomState }) {
       )}
 
       <p className="font-mono text-xs font-bold text-muted-foreground">
-        Question {round.data.roundNumber} of {approvedCount}
+        Question {round.data.roundNumber}{questionCount ? ` of ${questionCount}` : ''}
       </p>
       <h1 className="font-display text-2xl font-bold leading-snug">{question.prompt}</h1>
 

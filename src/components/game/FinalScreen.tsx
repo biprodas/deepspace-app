@@ -10,7 +10,7 @@ import { Trophy } from 'lucide-react'
 import { buttonVariants, cn } from '@/components/ui'
 import { AnswerChip, Initials } from '@/components/landing/bits'
 import type { RoomState } from '@/lib/use-room'
-import { hardestQuestions, questionResults } from '@/lib/game-report'
+import { askedQuestion, hardestQuestions, questionResults } from '@/lib/game-report'
 import { SourceQuote } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
@@ -86,7 +86,7 @@ export function FinalScreen({ state }: { state: RoomState }) {
           </h2>
           <ul className="space-y-3">
             {missed.map((r) => {
-              const q = questionsById.get(r.data.questionId)
+              const q = askedQuestion(r.data, questionsById)
               const mine = answersByRound.get(r.recordId)
               const correct = r.data.correctIndex ?? 0
               if (!q) return null

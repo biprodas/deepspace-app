@@ -13,7 +13,8 @@ import { Check, NotebookPen } from 'lucide-react'
 import { Button, useToast } from '@/components/ui'
 import { appendToNote, revealBlocks } from '@/lib/note-append'
 import { useAction } from '@/lib/use-action'
-import type { Question, Round } from '@/schemas/game-types'
+import type { AskedQuestion } from '@/lib/game-report'
+import type { Round } from '@/schemas/game-types'
 import type { TeamMember } from '@/schemas/space-types'
 
 interface AddToNotesProps {
@@ -22,7 +23,7 @@ interface AddToNotesProps {
   spaceId: string
   userId?: string
   roundId: string
-  question: Question
+  question: AskedQuestion
   round: Round
 }
 

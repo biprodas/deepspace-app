@@ -44,8 +44,10 @@ describe('schemas', () => {
   })
 
   // The answer must never reach a player before reveal (docs/features.md F5).
+  // …and no question before it's asked: players read it from its round.
   it.each([
     ['answer_keys', 'ownerId'],
+    ['questions', 'ownerId'],
     ['answers', 'userId'],
     ['generations', 'userId'],
     ['room_invites', 'inviteeId'],
@@ -61,7 +63,7 @@ describe('schemas', () => {
     }
   })
 
-  it('no reveal-only column lives on a player-readable question', () => {
+  it('no reveal-only column lives on a question (its prompt is copied onto rounds)', () => {
     const columns = byName.get('questions')!.columns.map((c) => c.name)
     expect(columns).not.toContain('correctIndex')
     expect(columns).not.toContain('explanation')

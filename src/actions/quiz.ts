@@ -285,6 +285,7 @@ const addQuestion = defineAction(
 
     const question: Question = {
       quizId: p.quizId,
+      ownerId: quiz.data.ownerId,
       order,
       prompt: p.prompt,
       options: p.options,

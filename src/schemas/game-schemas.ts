@@ -42,6 +42,11 @@ export const roundsSchema: CollectionSchema = {
     time('startedAt', { required: true }),
     time('deadline', { required: true }),
     num('timeLimitMs', { required: true, immutable: true }),
+    // Copied from the question at start (players can't read `questions`);
+    // not immutable so the backfill can fill rounds played before this.
+    text('prompt'),
+    json('options'),
+    num('questionCount'),
     num('remainingMs'),
     time('revealedAt'),
     num('correctIndex'),

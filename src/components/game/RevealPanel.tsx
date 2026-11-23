@@ -6,11 +6,12 @@
 
 import { ExternalLink, HelpCircle, Quote } from 'lucide-react'
 import { Button } from '@/components/ui'
-import type { Question, Round } from '@/schemas/game-types'
+import type { AskedQuestion } from '@/lib/game-report'
+import type { Round } from '@/schemas/game-types'
 import { AnswerTiles } from './AnswerTiles'
 
 interface RevealPanelProps {
-  question: Question
+  question: AskedQuestion
   round: Round
   picked?: number
   size?: 'md' | 'lg'

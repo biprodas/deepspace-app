@@ -5,9 +5,9 @@
  */
 
 import { z } from 'zod'
-import type { Generation } from '../schemas/game-types'
+import type { Generation, Question, Quiz, Round } from '../schemas/game-types'
 import { audit } from './audit'
-import { ActionError, defineAction, queryRecords, type Rec } from './shared'
+import { ActionError, defineAction, findRecord, queryRecords, unwrap, type Rec } from './shared'
 
 export const EXPORT_COLLECTIONS = [
   'quizzes',
@@ -42,6 +42,45 @@ const exportData = defineAction(z.object({}), async ({ userId, tools, env }) => 
   }
   await audit(tools, userId, { action: 'admin.data_exported' })
   return { exportedAt: new Date().toISOString(), limitPerCollection: PER_COLLECTION, collections }
+})
+
+/**
+ * One-off repair for data saved before questions became owner-only: gives
+ * each question its quiz's `ownerId` (without it even the owner can't read
+ * the row), and copies the question onto rounds played before rounds carried
+ * it (players read past questions from there). Idempotent; owner-only.
+ */
+const backfillQuestionOwners = defineAction(z.object({}), async ({ userId, tools, env }) => {
+  if (!env.OWNER_USER_ID || userId !== env.OWNER_USER_ID) {
+    throw new ActionError('Only the app owner can update older records', 'forbidden')
+  }
+  const [questions, rounds] = await Promise.all([
+    queryRecords<Question>(tools, 'questions', {}, { limit: PER_COLLECTION }),
+    queryRecords<Round>(tools, 'rounds', {}, { limit: PER_COLLECTION }),
+  ])
+
+  const owners = new Map<string, string | undefined>()
+  let questionsFixed = 0
+  for (const q of questions) {
+    if (q.data.ownerId) continue
+    if (!owners.has(q.data.quizId)) {
+      owners.set(q.data.quizId, (await findRecord<Quiz>(tools, 'quizzes', q.data.quizId))?.data.ownerId)
+    }
+    const ownerId = owners.get(q.data.quizId)
+    if (!ownerId) continue
+    unwrap(await tools.update('questions', q.recordId, { ownerId }))
+    questionsFixed += 1
+  }
+
+  const byId = new Map(questions.map((q) => [q.recordId, q.data]))
+  let roundsFixed = 0
+  for (const r of rounds) {
+    const q = byId.get(r.data.questionId)
+    if (r.data.prompt || !q) continue
+    unwrap(await tools.update('rounds', r.recordId, { prompt: q.prompt, options: q.options }))
+    roundsFixed += 1
+  }
+  return { questionsFixed, roundsFixed }
 })
 
 // ─── Admin console (docs/features.md F16) ────────────────
@@ -163,5 +202,6 @@ export type AdminSummary = {
 
 export const adminActions = {
   exportData,
+  backfillQuestionOwners,
   adminSummary,
 }

@@ -6,6 +6,18 @@
 
 import type { Question, Round } from '../schemas/game-types'
 
+export type AskedQuestion = Pick<Question, 'prompt' | 'options'>
+
+/**
+ * The question a round asked. Rounds carry their own copy, since players
+ * can't read `questions`; rounds from before that fall back to the
+ * question row, which only the quiz owner receives.
+ */
+export function askedQuestion(round: Round, questions: Map<string, Question>): AskedQuestion | undefined {
+  if (round.prompt && round.options) return { prompt: round.prompt, options: round.options }
+  return questions.get(round.questionId)
+}
+
 export interface QuestionResult {
   roundId: string
   roundNumber: number
@@ -25,7 +37,7 @@ export function questionResults(
     .filter((r) => r.data.status === 'revealed' && r.data.correctIndex !== undefined && r.data.correctIndex !== null)
     .sort((a, b) => a.data.roundNumber - b.data.roundNumber)
     .map((r) => {
-      const q = questions.get(r.data.questionId)
+      const q = askedQuestion(r.data, questions)
       const distribution = r.data.distribution ?? []
       const answered = distribution.reduce((sum, n) => sum + n, 0)
       const correct = distribution[r.data.correctIndex!] ?? 0

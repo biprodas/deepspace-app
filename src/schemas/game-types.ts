@@ -38,8 +38,11 @@ export interface Quiz {
   generationId?: string
 }
 
+/** Owner-only: players get a question's text from its round once it's asked. */
 export interface Question {
   quizId: string
+  /** The quiz owner; only they read the row. Unset on rows saved before it existed. */
+  ownerId?: string
   order: number
   prompt: string
   options: string[]
@@ -108,6 +111,15 @@ export interface Round {
   deadline: number
   /** The question's time limit, copied at start; pauses shift `deadline`, not this. */
   timeLimitMs: number
+  /**
+   * The question as asked, copied at start: players read questions only
+   * from rounds, so nobody sees one before it's asked. Unset on rounds
+   * played before this (the owner's question row fills in for those).
+   */
+  prompt?: string
+  options?: string[]
+  /** Rounds this game will have (played + still to play), for "Question 3 of 8". */
+  questionCount?: number
   remainingMs?: number
   revealedAt?: number
   correctIndex?: number

@@ -336,7 +336,8 @@ Every host-only action checks the caller against the room on the server.
 | Integration | Use | Billing |
 |---|---|---|
 | `wikipedia/search-pages`, `wikipedia/get-page-content` | Source text for topic quizzes | developer (owner) |
-| `anthropic/chat-completion` | Question drafting (structured JSON) | developer (owner), capped |
+| `anthropic/chat-completion` | Question drafting (structured JSON), mind maps, note drafts and reviews | developer (owner), capped |
+| `email/send` | Invite emails for games and study spaces (skipped for people who turned them off) | developer (owner) |
 
 ---
 

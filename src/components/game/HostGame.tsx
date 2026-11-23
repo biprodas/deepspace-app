@@ -21,7 +21,7 @@ import { RevealPanel } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
 export function HostGame({ state }: { state: RoomState }) {
-  const { room, round, question, players, online, approvedCount, standings, names, role, userId } = state
+  const { room, round, question, players, online, questionCount, standings, names, role, userId } = state
   const offset = useServerOffset()
   const { run, pending } = useAction()
   const [ending, setEnding] = useState(false)
@@ -46,7 +46,7 @@ export function HostGame({ state }: { state: RoomState }) {
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6" data-testid="host-game">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
         <span data-testid="round-label" className="font-mono font-bold text-foreground">
-          Question {round.data.roundNumber} of {approvedCount}
+          Question {round.data.roundNumber}{questionCount ? ` of ${questionCount}` : ''}
         </span>
         <span className="inline-flex items-center gap-1">
           <Users className="size-4" aria-hidden="true" />

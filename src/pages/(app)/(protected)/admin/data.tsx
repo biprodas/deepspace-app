@@ -7,7 +7,7 @@
 
 import { usePageTitle } from '@/lib/page-title'
 import { useCallback, useEffect, useState } from 'react'
-import { Database, Download } from 'lucide-react'
+import { Database, Download, Wrench } from 'lucide-react'
 import { Badge, Button } from '@/components/ui'
 import { AdminHeader, OwnerOnly } from '@/components/admin/admin-ui'
 import { callAction } from '@/lib/actions-client'
@@ -39,6 +39,19 @@ export default function AdminDataPage() {
     void load()
   }, [load])
 
+  // One-off after the deploy that made questions owner-only; safe to repeat.
+  const [backfill, setBackfill] = useState<{ running: boolean; note?: string }>({ running: false })
+  async function updateOlderRecords() {
+    setBackfill({ running: true })
+    const result = await callAction<{ questionsFixed: number; roundsFixed: number }>('backfillQuestionOwners')
+    setBackfill({
+      running: false,
+      note: result.success
+        ? `Updated ${result.data.questionsFixed} questions and ${result.data.roundsFixed} rounds.`
+        : result.error,
+    })
+  }
+
   function download() {
     if (!data) return
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -67,12 +80,20 @@ export default function AdminDataPage() {
         onRefresh={() => void load()}
         refreshing={loading}
       >
+        <Button size="sm" variant="outline" onClick={() => void updateOlderRecords()} loading={backfill.running}>
+          <Wrench /> Update older records
+        </Button>
         <Button size="sm" onClick={download} disabled={!data}>
           <Download /> Download JSON
         </Button>
       </AdminHeader>
 
       {error && <p role="alert" className="text-sm font-medium text-destructive">{error.message}</p>}
+      {backfill.note && (
+        <p role="status" data-testid="backfill-result" className="text-sm text-muted-foreground">
+          {backfill.note}
+        </p>
+      )}
 
       {data && (
         <>

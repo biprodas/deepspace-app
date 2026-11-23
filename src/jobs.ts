@@ -166,6 +166,7 @@ async function saveQuestions(
   for (const draft of drafts) {
     const question: Question = {
       quizId,
+      ownerId: quiz.data.ownerId,
       order: replacing ? order : order++,
       prompt: draft.prompt,
       options: draft.options,

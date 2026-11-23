@@ -83,9 +83,12 @@ model Quiz {
   updatedAt    DateTime   // automatic on every record
 }
 
+/// Readable by the quiz owner only, like AnswerKey: players get a
+/// question's prompt and options from its Round once it's asked.
 model Question {
   recordId  String  @id
   quizId    String  // Quiz.recordId
+  ownerId   String? // Quiz.ownerId (ownerField); unset on rows saved before it, until backfillQuestionOwners
   order     Int     // not unique: reordering swaps values
   prompt    String
   options   Json    // string[4]
@@ -159,6 +162,9 @@ model Round {
   startedAt    DateTime
   deadline     DateTime
   timeLimitMs  Int         // copied from the question; pauses move deadline, not this
+  prompt       String?     // copied from the question at start (players can't read Question)
+  options      Json?       // string[4], copied at start
+  questionCount Int?       // rounds this game will have, for "Question 3 of 8"
   remainingMs  Int?        // set while the room is paused
   revealedAt   DateTime?
   // reveal fields (null until reveal)

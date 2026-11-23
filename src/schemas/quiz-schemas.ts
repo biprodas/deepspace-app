@@ -27,17 +27,26 @@ export const quizzesSchema: CollectionSchema = {
   permissions: serverWritten(true),
 }
 
+/**
+ * Owner-only, like answer keys: readable by everyone, a quiz's questions
+ * would show players what's coming before it's asked. `startNextRound`
+ * copies each question onto its round as it starts, and players read it
+ * there. `ownerId` isn't `required` because rows saved before it existed
+ * have none until `backfillQuestionOwners` fills it.
+ */
 export const questionsSchema: CollectionSchema = {
   name: 'questions',
   columns: [
     text('quizId', { required: true, immutable: true }),
+    text('ownerId'),
     num('order', { required: true }),
     text('prompt', { required: true }),
     json('options', { required: true }),
     num('timeLimit', { required: true }),
     bool('approved', { default: false }),
   ],
-  permissions: serverWritten(true),
+  ownerField: 'ownerId',
+  permissions: serverWritten('own'),
 }
 
 /**

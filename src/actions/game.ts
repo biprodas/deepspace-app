@@ -102,6 +102,10 @@ async function startNextRound(tools: ActionTools, room: Rec<Room>) {
     startedAt: now,
     deadline: now + timeLimitMs,
     timeLimitMs,
+    // Players can't read `questions`; this is the first they see of it.
+    prompt: question.data.prompt,
+    options: question.data.options,
+    questionCount: roundCount + remaining.length,
   }
   const result = await tools.create('rounds', { ...round })
   if (isDuplicate(result)) throw new ActionError('That question has already started', 'already_started')

@@ -14,7 +14,7 @@ import type { ActionTools } from 'deepspace/worker'
 import { z } from 'zod'
 import { CATEGORY_OF } from '../lib/audit'
 import type { AuditAction, AuditEntry, AuditSource } from '../schemas/audit-schemas'
-import { ActionError, defineAction, displayName, recordId } from './shared'
+import { ActionError, defineAction, displayName, queryRecords, recordId } from './shared'
 
 interface AuditInput {
   action: AuditAction
@@ -46,6 +46,28 @@ export async function audit(tools: ActionTools, actorId: string, input: AuditInp
   } catch (err) {
     console.warn('audit log write failed', input.action, err instanceof Error ? err.message : err)
   }
+}
+
+/**
+ * How many of `actions` the actor did in the last 24 hours, counting at
+ * most `cap` (enough to tell whether a daily limit is reached). Daily AI
+ * limits count these entries rather than what the calls created, so
+ * deleting a mind map or a note doesn't hand a use back. Newest first, so
+ * a long history inside the retention window can't hide today's entries.
+ */
+export async function auditsToday(
+  tools: ActionTools,
+  actorId: string,
+  actions: readonly AuditAction[],
+  cap: number,
+): Promise<number> {
+  const since = Date.now() - 24 * 60 * 60 * 1000
+  const pages = await Promise.all(
+    actions.map((action) =>
+      queryRecords<AuditEntry>(tools, 'audit_log', { actorId, action }, { orderBy: 'at', orderDir: 'desc', limit: cap }),
+    ),
+  )
+  return pages.flat().filter((e) => e.data.at > since).length
 }
 
 /** How long logRoleChange waits for a role change to show on the user: up to ~3 s. */

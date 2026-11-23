@@ -17,11 +17,10 @@ import type { Board } from '../schemas/board-schemas'
 import type { Space } from '../schemas/space-types'
 import { resolveWikipediaTopics } from './quiz'
 import { ActionError, defineAction, getRecord, queryRecords, recordId, unwrap } from './shared'
-import { audit } from './audit'
+import { audit, auditsToday } from './audit'
 import { requireMember } from './space'
 
 const MINDMAP_MAX_TOKENS = 2500
-const DAY_MS = 24 * 60 * 60 * 1000
 
 const boardTitle = z.string().trim().min(1, 'Give the board a title').max(BOARD_TITLE_MAX)
 
@@ -56,9 +55,7 @@ const createMindMap = defineAction(
   async ({ userId, tools }, p) => {
     await requireMember(tools, p.spaceId, userId)
     await requireBoardCapacity(tools, p.spaceId)
-    const since = Date.now() - DAY_MS
-    const mine = await queryRecords<Board>(tools, 'boards', { ownerId: userId, kind: 'mindmap' })
-    if (mine.filter((b) => b.data.createdAt > since).length >= DAILY_MINDMAP_LIMIT) {
+    if ((await auditsToday(tools, userId, ['ai.mind_map'], DAILY_MINDMAP_LIMIT)) >= DAILY_MINDMAP_LIMIT) {
       throw new ActionError(`You can generate ${DAILY_MINDMAP_LIMIT} mind maps a day`, 'daily_limit')
     }
 

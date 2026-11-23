@@ -17,19 +17,17 @@ import { z } from 'zod'
 import { DAILY_NOTE_AI_LIMIT, MAX_NOTES_CHARS, MAX_TOPIC_CHARS } from '../lib/game-rules'
 import { MODEL, htmlToText, readModelReply, truncate } from '../lib/generation'
 import { buildNoteDraftPrompt, buildNoteReviewPrompt, parseNoteDraft, parseNoteReview } from '../lib/note-ai'
-import type { AuditEntry } from '../schemas/audit-schemas'
 import type { Note } from '../schemas/note-schemas'
 import { resolveWikipediaTopics } from './quiz'
-import { ActionError, defineAction, getRecord, queryRecords, recordId } from './shared'
-import { audit } from './audit'
+import { ActionError, defineAction, getRecord, recordId } from './shared'
+import { audit, auditsToday } from './audit'
 import { requireMember } from './space'
 
-const DAY_MS = 24 * 60 * 60 * 1000
 const DRAFT_MAX_TOKENS = 2500
 const REVIEW_MAX_TOKENS = 2500
 /** Below this a note has too little to review. */
 const MIN_REVIEW_CHARS = 40
-const NOTE_AI_ACTIONS = ['ai.note_draft', 'ai.note_review']
+const NOTE_AI_ACTIONS = ['ai.note_draft', 'ai.note_review'] as const
 
 const topic = z.string().trim().min(1, 'Enter a topic').max(120)
 
@@ -41,10 +39,7 @@ async function noteForMember(tools: ActionTools, noteId: string, userId: string)
 }
 
 async function requireQuota(tools: ActionTools, userId: string) {
-  const since = Date.now() - DAY_MS
-  const mine = await queryRecords<AuditEntry>(tools, 'audit_log', { actorId: userId, category: 'paid' })
-  const used = mine.filter((e) => NOTE_AI_ACTIONS.includes(e.data.action) && e.data.at > since).length
-  if (used >= DAILY_NOTE_AI_LIMIT) {
+  if ((await auditsToday(tools, userId, NOTE_AI_ACTIONS, DAILY_NOTE_AI_LIMIT)) >= DAILY_NOTE_AI_LIMIT) {
     throw new ActionError(`You can use AI in notes ${DAILY_NOTE_AI_LIMIT} times a day`, 'daily_limit')
   }
 }

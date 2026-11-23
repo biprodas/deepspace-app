@@ -34,7 +34,8 @@ function requireOpenRoom(room: Rec<Room>) {
   if (isClosed(room.data)) throw new ActionError('This game has finished', 'room_closed')
 }
 
-async function closeOpenPolls(tools: ActionTools, roomId: string) {
+/** Also called when a game ends, so nobody votes after the final screen. */
+export async function closeOpenPolls(tools: ActionTools, roomId: string) {
   const open = (await queryRecords<Poll>(tools, 'polls', { roomId })).filter((p) => p.data.status === 'open')
   const closedAt = Date.now()
   for (const poll of open) unwrap(await tools.update('polls', poll.recordId, { status: 'closed', closedAt }))
@@ -81,6 +82,9 @@ const votePoll = defineAction(
     const poll = await getRecord<Poll>(tools, 'polls', p.pollId, 'Poll')
     if (poll.data.status !== 'open') throw new ActionError('This poll has closed', 'poll_closed')
     if (p.choiceIndex >= poll.data.options.length) throw new ActionError('That isn’t one of the options', 'invalid_params')
+    // Polls left open by games that ended before polls were closed with them.
+    const room = await getRecord<Room>(tools, 'rooms', poll.data.roomId, 'Room')
+    if (isClosed(room.data)) throw new ActionError('This poll has closed', 'poll_closed')
     await requirePlayer(tools, poll.data.roomId, userId)
 
     const [existing] = await queryRecords<PollVote>(tools, 'poll_votes', { pollId: p.pollId, userId }, { limit: 1 })

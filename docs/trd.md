@@ -400,8 +400,9 @@ src/
     GitHub later.
 - `wrangler.toml`: keep `DEEPSPACE_APP_ID` committed (identity, not a
   secret). No `[vars]` secrets.
-- `src/integrations.ts`: `wikipedia` and `anthropic` stay `developer`
-  billing (default), sign-in required.
+- `src/integrations.ts`: `wikipedia`, `anthropic` and `email` are `developer`
+  billed and `serverOnly`: the browser proxy refuses them, so only server
+  code (behind the daily caps) can call them.
 - **One secret is needed: `OWNER_USER_ID`** (the owner's DeepSpace user id).
   Without it the admin console (`adminSummary`, `exportData`) refuses
   everyone, the daily audit-log prune runs with no user, and the notes/boards

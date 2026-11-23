@@ -12,6 +12,7 @@ import { mintJoinCode, parseJoinCode } from '../lib/join-code'
 import type { Question, Quiz, Room, RoomPlayer, Round } from '../schemas/game-types'
 import { audit } from './audit'
 import { acceptInvites } from './invite'
+import { closeOpenPolls } from './poll'
 import { requireMember } from './space'
 import {
   ActionError,
@@ -224,6 +225,7 @@ const endRoom = defineAction(z.object({ roomId: recordId }), async ({ userId, to
   requireHost(room, userId)
   requireOpen(room)
   unwrap(await tools.update('rooms', p.roomId, { status: 'cancelled', completedAt: Date.now() }))
+  await closeOpenPolls(tools, p.roomId)
   return { roomId: p.roomId }
 })
 

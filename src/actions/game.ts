@@ -28,6 +28,7 @@ import type {
   Round,
   Standing,
 } from '../schemas/game-types'
+import { closeOpenPolls } from './poll'
 import {
   ActionError,
   defineAction,
@@ -156,11 +157,16 @@ async function finish(tools: ActionTools, roomId: string) {
       completedAt: Date.now(),
     }),
   )
-  try {
-    await addToLeaderboard(tools, roomId)
-  } catch (err) {
-    // The game is over either way; a board update must not undo that.
-    console.error(`[leaderboard] room ${roomId}: ${err instanceof Error ? err.message : String(err)}`)
+  // The game is over either way; neither follow-up may undo that.
+  for (const [label, step] of [
+    ['leaderboard', addToLeaderboard],
+    ['polls', closeOpenPolls],
+  ] as const) {
+    try {
+      await step(tools, roomId)
+    } catch (err) {
+      console.error(`[${label}] room ${roomId}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 /**
  * A shared note in a study space: /spaces/:spaceId/notes/:noteId
  * (docs/features.md F14). Every member edits live; the title saves on blur;
+ * "AI" drafts notes from a topic or reviews the note (suggestions only), and
  * "Make a quiz" (top right) turns the note into a reviewed quiz. The note
  * is a bordered page on a tinted desk, so the writing area is obvious. The
  * app navigation gives way to the space bar (focus mode), which shows who is
@@ -21,6 +22,7 @@ import {
   DropdownMenuTrigger,
   EmptyState,
 } from '@/components/ui'
+import { NoteAiMenu } from '@/components/notes/NoteAi'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { QuizFromNoteModal } from '@/components/notes/QuizFromNoteModal'
 import { SpaceFocusBar } from '@/components/space/SpaceFocusBar'
@@ -81,8 +83,9 @@ export default function NotePage() {
   return (
     <>
       <SpaceFocusBar state={spaceState} section="notes" unsaved={titleDirty && !online} />
-      {/* The "desk": a tinted surface the page sits on, so the writing area reads as one sheet. */}
-      <div className="min-h-[calc(100dvh-3rem)] bg-muted/40 pb-16">
+      {/* The "desk": a tinted surface the page sits on, so the writing area reads as one sheet.
+          While the AI review panel is open, wide screens make room for it beside the note. */}
+      <div className="min-h-[calc(100dvh-3rem)] bg-muted/40 pb-16 transition-[padding] md:[.note-review-open_&]:pr-[400px]">
         <header className="mx-auto flex max-w-4xl items-center gap-x-3 gap-y-2 px-4 pb-4 pt-5 sm:px-2">
           <div className="min-w-0 flex-1">
             <input
@@ -107,6 +110,7 @@ export default function NotePage() {
             />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <NoteAiMenu editor={editor} noteId={noteId} noteTitle={note.data.title} />
             <Button onClick={() => setMakingQuiz(true)} data-testid="quiz-from-note-open">
               <Sparkles />
               <span className="sm:hidden">Quiz</span>

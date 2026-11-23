@@ -26,6 +26,8 @@ export const BOARD_TITLE_MAX = 80
 export const MAX_BOARDS_PER_SPACE = 100
 /** AI mind maps one user may generate per rolling 24 hours (credit guard). */
 export const DAILY_MINDMAP_LIMIT = 5
+/** AI note drafts and reviews one user may run per rolling 24 hours (credit guard). */
+export const DAILY_NOTE_AI_LIMIT = 10
 
 // ─── Polls ───────────────────────────────────────────────
 

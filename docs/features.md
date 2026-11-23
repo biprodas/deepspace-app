@@ -189,6 +189,15 @@ Build these end to end before anything in section 2.
   sentence from the note. In a game hosted in a space, members can "Add to
   notes" on a reveal: the question, answer, explanation and source go into
   that game's session note.
+  **AI in a note** (the "AI" menu): *Draft notes from a topic* has Claude
+  write study notes from a Wikipedia article (headings, short points, key
+  terms, the source linked at the end), added to the note for everyone, and
+  undoable. *Review this note* opens a side panel of suggestions (possible
+  mistakes, missing points, unclear passages, structure), optionally
+  checking facts against a Wikipedia article. The review never changes the
+  note: a suggestion can show its passage, add its missing text, or be
+  dismissed. Both are members-only, run on the server, are logged as paid
+  calls, and share a limit of 10 a day per person.
   **Done when:** two members see each other's typing, a member who leaves
   gets no note and no socket, and a pinned reveal shows in the session note.
 - **F15. Whiteboards and AI mind maps in a space:** members draw together on

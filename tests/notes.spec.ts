@@ -157,3 +157,65 @@ test('the "/" menu, the format bar and the block handle edit a note', async ({ u
   await page.keyboard.type('Powerhouse of the cell')
   await expect(editor.locator('blockquote')).toHaveText('Powerhouse of the cell')
 })
+
+test('AI in a note: members only, short notes are refused before any AI call, and the review panel opens', async ({
+  users,
+}) => {
+  const [ownerUser, outsiderUser] = await users(2)
+  const owner = await actionsAs(ownerUser.page)
+  const outsider = await actionsAs(outsiderUser.page)
+  const space = await createTestSpace(owner, 'AI notes')
+  const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId: space!.spaceId, title: 'Photosynthesis' })
+
+  // Outsiders are refused by both actions.
+  const text = 'Photosynthesis happens in the chloroplasts and releases oxygen.'
+  expect(await outsider('draftNote', { noteId: note!.noteId, topic: 'Photosynthesis' })).toMatchObject({ success: false, code: 'not_a_member' })
+  expect(await outsider('reviewNote', { noteId: note!.noteId, text })).toMatchObject({ success: false, code: 'not_a_member' })
+  // Too little to review: refused before Claude is called (no credits spent).
+  expect(await owner('reviewNote', { noteId: note!.noteId, text: 'Too short' })).toMatchObject({ success: false, code: 'too_little_text' })
+
+  // The menu offers both; the review panel opens with its fact-check option, and closes.
+  const page = ownerUser.page
+  await page.goto(`/spaces/${space!.spaceId}/notes/${note!.noteId}`)
+  await expect(editorOf(page)).toHaveAttribute('contenteditable', 'true', { timeout: 20_000 })
+  await page.getByTestId('note-ai-menu').click()
+  await expect(page.getByTestId('note-ai-draft')).toBeVisible()
+  await page.getByTestId('note-ai-review').click()
+  const panel = page.getByTestId('note-review')
+  await expect(panel).toContainText('won’t change the note')
+  await panel.getByTestId('note-review-check-facts').click()
+  await expect(panel.getByLabel('Wikipedia topic to check against')).toHaveValue('Photosynthesis')
+  // An empty note is refused with a clear message.
+  await panel.getByTestId('note-review-run').click()
+  await expect(page.getByText('Write a little more before asking for a review')).toBeVisible({ timeout: 15_000 })
+  await panel.getByRole('button', { name: 'Close review' }).click()
+  await expect(panel).toHaveCount(0)
+})
+
+test('AI drafts notes from a topic into the note, and reviews it with suggestions only', async ({ users }) => {
+  test.skip(!process.env.RUN_PAID_TESTS, 'Calls Claude and Wikipedia; set RUN_PAID_TESTS=1')
+  test.setTimeout(180_000)
+  const [ownerUser] = await users(1)
+  const owner = await actionsAs(ownerUser.page)
+  const space = await createTestSpace(owner, 'AI notes paid')
+  const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId: space!.spaceId, title: 'Photosynthesis' })
+  const page = ownerUser.page
+  await page.goto(`/spaces/${space!.spaceId}/notes/${note!.noteId}`)
+  await expect(editorOf(page)).toHaveAttribute('contenteditable', 'true', { timeout: 20_000 })
+
+  // Draft: headings and points land in the note, with the Wikipedia source linked.
+  await page.getByTestId('note-ai-menu').click()
+  await page.getByTestId('note-ai-draft').click()
+  await page.getByTestId('note-draft-submit').click()
+  await expect(editorOf(page).locator('h2')).toHaveCount(1, { timeout: 90_000 })
+  expect(await editorOf(page).locator('h3').count()).toBeGreaterThanOrEqual(2)
+  await expect(editorOf(page).locator('a[href*="wikipedia.org/wiki/"]')).toHaveCount(1)
+  const before = await editorOf(page).innerText()
+
+  // Review: suggestions show in the panel, and the note is unchanged.
+  await page.getByTestId('note-ai-menu').click()
+  await page.getByTestId('note-ai-review').click()
+  await page.getByTestId('note-review-run').click()
+  await expect(page.getByTestId('note-review').getByRole('button', { name: 'Review again' })).toBeVisible({ timeout: 90_000 })
+  expect(await editorOf(page).innerText()).toBe(before)
+})

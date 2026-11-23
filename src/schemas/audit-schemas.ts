@@ -23,6 +23,8 @@ export const AUDIT_ACTIONS = [
   'board.deleted',
   'ai.quiz_generation',
   'ai.mind_map',
+  'ai.note_draft',
+  'ai.note_review',
   'email.invites_sent',
   'admin.data_exported',
   'user.role_changed',

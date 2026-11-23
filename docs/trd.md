@@ -222,6 +222,8 @@ All in `src/actions/`, exposed at `POST /api/actions/<name>`. Each one:
 | `inviteToSpace` | member | Accounts or email addresses; at most 100 invites a space |
 | `createNote` / `renameNote` / `deleteNote` | member / author or owner | At most 200 notes a space |
 | `sessionNote` | member | The game's session note, created on first "Add to notes" |
+| `draftNote` | member of the note's space | 10 AI note uses a day; Wikipedia article → Claude → checked notes (`lib/note-ai.ts`), returned for the browser to add |
+| `reviewNote` | member of the note's space | Same limit; the note's text (≥ 40 characters, refused before any AI call) and an optional Wikipedia topic → suggestions only |
 | `createBoard` / `renameBoard` / `deleteBoard` | member / creator or owner | At most 100 boards a space |
 | `createMindMap` | member | 5 a day; Wikipedia text ≥ 200 characters; Claude's reply parsed and fitted (§15) |
 | `markMindMapDrawn` | creator | The map is drawn once |
@@ -487,7 +489,12 @@ it in internal-only headers.
 
 **Notes.** A Tiptap 3 editor bound to the note's Yjs document, with
 collaborative cursors, a "/" block menu, a block handle and a selection
-format bar. "Make a quiz" sends the note's text to the normal quiz
+format bar. The "AI" menu drafts notes from a Wikipedia topic (added
+through the editor, so they sync and undo like typing) or reviews the note:
+Claude's suggestions are parsed and checked (a quoted passage must really be
+in the note), shown in a side panel, and applied only when a member chooses
+"Add to note"; the review never edits the note. The daily limit counts the
+member's `ai.note_*` audit entries. "Make a quiz" sends the note's text to the normal quiz
 pipeline (§8); "Add to notes" on a reveal pins the question into the game's
 session note (`sessionNote`).
 

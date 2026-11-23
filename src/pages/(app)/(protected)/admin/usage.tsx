@@ -12,7 +12,7 @@ import { usePageTitle } from '@/lib/page-title'
 /** The email integration's listed price per message (`npx deepspace integrations info email/send`). */
 const EMAIL_PRICE_USD = 0.013
 
-type Window = { generations: number; generationsFailed: number; inputTokens: number; outputTokens: number; mindMaps: number; emailsSent: number; wikipediaLookups: number }
+type Window = { generations: number; generationsFailed: number; inputTokens: number; outputTokens: number; mindMaps: number; noteAi: number; emailsSent: number; wikipediaLookups: number }
 
 interface Row {
   label: string
@@ -29,7 +29,8 @@ const ROWS: Row[] = [
   { label: 'Claude input tokens', detail: 'Source text and instructions sent to Claude', value: (w) => formatCount(w.inputTokens) },
   { label: 'Claude output tokens', detail: 'Questions Claude wrote back', value: (w) => formatCount(w.outputTokens) },
   { label: 'AI mind maps', detail: 'Claude runs that drafted a mind map (tokens aren’t recorded)', value: (w) => formatCount(w.mindMaps) },
-  { label: 'Wikipedia lookups', detail: 'Articles fetched for quizzes and mind maps', value: (w) => formatCount(w.wikipediaLookups) },
+  { label: 'AI in notes', detail: 'Claude runs that drafted notes from a topic or reviewed a note', value: (w) => formatCount(w.noteAi) },
+  { label: 'Wikipedia lookups', detail: 'Articles fetched for quizzes, mind maps and AI notes', value: (w) => formatCount(w.wikipediaLookups) },
   {
     label: 'Invite emails',
     detail: `Game and space invites delivered by email/send, at $${EMAIL_PRICE_USD} each`,

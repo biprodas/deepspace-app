@@ -19,6 +19,8 @@ export const CATEGORY_OF: Record<AuditAction, AuditCategory> = {
   'board.deleted': 'deletion',
   'ai.quiz_generation': 'paid',
   'ai.mind_map': 'paid',
+  'ai.note_draft': 'paid',
+  'ai.note_review': 'paid',
   'email.invites_sent': 'paid',
   'admin.data_exported': 'admin',
   'user.role_changed': 'roles',
@@ -62,6 +64,10 @@ export function describeAudit(e: Pick<AuditEntry, 'action' | 'targetLabel' | 'me
         : `started an AI draft for ${t}`
     case 'ai.mind_map':
       return `generated an AI mind map of ${t}`
+    case 'ai.note_draft':
+      return m.topic ? `drafted AI notes on ${m.topic} in ${t}` : `drafted AI notes in ${t}`
+    case 'ai.note_review':
+      return m.checkedAgainst ? `asked AI to review ${t} against ${m.checkedAgainst}` : `asked AI to review ${t}`
     case 'email.invites_sent':
       return `sent ${plural(Number(m.count ?? 0), 'invite email')} for ${t}`
     case 'admin.data_exported':

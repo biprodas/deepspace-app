@@ -109,6 +109,8 @@ self-study without a host.
   link, or invite people I've played with, so the group has one home.
 - S2. As a member, I write notes together with the group live, and turn a
   note into a quiz in one click.
+- S2a. As a member, I have AI draft notes from a topic, or review my note
+  and suggest improvements without changing it.
 - S3. As a member, I sketch on a whiteboard with the group (pen, shapes,
   arrows, sticky notes), and erase or clear it when we're done.
 - S4. As a member, I generate a mind map from a Wikipedia topic and edit it
@@ -211,7 +213,7 @@ tracked in production.
 | Wikipedia text is noisy, so source checks fail | Fewer usable questions | Clean HTML to text; normalise before matching |
 | Sign-in friction for players | Slower joins | Share link goes straight to sign-in, then the room |
 | Realtime edge cases (refresh, late join, host drop) | Broken games | State lives on the server; tested with two accounts |
-| AI cost per quiz | Owner credit drain | Per-call and per-user daily caps (10 quiz drafts, 5 mind maps a day) |
+| AI cost per quiz | Owner credit drain | Per-call and per-user daily caps (10 quiz drafts, 5 mind maps and 10 AI note uses a day) |
 | A space's data leaks to non-members | Private notes exposed | The `'team'` read rule, plus membership checks on the notes and boards connections; tested |
 | 5-day window | Unfinished core | Game loop built first on hand-written questions; AI added on Day 3 |
 

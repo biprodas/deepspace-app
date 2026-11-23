@@ -6,6 +6,7 @@ import { boardActions } from './board'
 import { gameActions } from './game'
 import { inviteActions } from './invite'
 import { noteActions } from './note'
+import { noteAiActions } from './note-ai'
 import { pollActions } from './poll'
 import { prefActions } from './prefs'
 import { quizActions } from './quiz'
@@ -20,6 +21,7 @@ const registry = {
   ...prefActions,
   ...spaceActions,
   ...noteActions,
+  ...noteAiActions,
   ...boardActions,
   ...gameActions,
   ...adminActions,

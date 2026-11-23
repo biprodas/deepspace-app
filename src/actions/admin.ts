@@ -63,6 +63,8 @@ interface UsageWindow {
   inputTokens: number
   outputTokens: number
   mindMaps: number
+  /** AI note drafts and reviews (counted from the audit log). */
+  noteAi: number
   emailsSent: number
   /** Wikipedia lookups: one per Wikipedia-sourced generation topic and per mind map. */
   wikipediaLookups: number
@@ -74,6 +76,7 @@ const emptyWindow = (): UsageWindow => ({
   inputTokens: 0,
   outputTokens: 0,
   mindMaps: 0,
+  noteAi: 0,
   emailsSent: 0,
   wikipediaLookups: 0,
 })
@@ -90,7 +93,7 @@ const adminSummary = defineAction(z.object({}), async ({ userId, tools, env }) =
   const all = <T>(collection: string) =>
     queryRecords<T>(tools, collection, {}, { orderBy: 'createdAt', orderDir: 'desc', limit: COUNT_LIMIT })
 
-  const [users, quizzes, rooms, spaces, notes, boards, generations, roomInvites, spaceInvites] = await Promise.all([
+  const [users, quizzes, rooms, spaces, notes, boards, generations, roomInvites, spaceInvites, paid] = await Promise.all([
     all('users'),
     all('quizzes'),
     all<{ status: string }>('rooms'),
@@ -100,6 +103,12 @@ const adminSummary = defineAction(z.object({}), async ({ userId, tools, env }) =
     all<Generation>('generations'),
     all<{ emailSent?: boolean; invitedAt: number }>('room_invites'),
     all<{ emailSent?: boolean; invitedAt: number }>('space_invites'),
+    queryRecords<{ action: string; at: number; meta?: Record<string, unknown> }>(
+      tools,
+      'audit_log',
+      { category: 'paid' },
+      { limit: COUNT_LIMIT },
+    ),
   ])
 
   const since = Date.now() - 30 * DAY_MS
@@ -119,6 +128,12 @@ const adminSummary = defineAction(z.object({}), async ({ userId, tools, env }) =
   }
   for (const b of boards) {
     if (b.data.kind === 'mindmap') add(b.data.createdAt, (w) => ((w.mindMaps += 1), (w.wikipediaLookups += 1)))
+  }
+  for (const e of paid) {
+    const wiki = e.data.action === 'ai.note_draft' || (e.data.action === 'ai.note_review' && !!e.data.meta?.checkedAgainst)
+    if (e.data.action === 'ai.note_draft' || e.data.action === 'ai.note_review') {
+      add(e.data.at, (w) => ((w.noteAi += 1), (w.wikipediaLookups += wiki ? 1 : 0)))
+    }
   }
   for (const i of [...roomInvites, ...spaceInvites]) {
     if (i.data.emailSent) add(i.data.invitedAt, (w) => (w.emailsSent += 1))

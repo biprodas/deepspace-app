@@ -6,12 +6,12 @@
  * initial centre, and drawing a generated mind map once (`drawOnce`).
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { useCanvas, useUserLookup } from 'deepspace'
 import type { LaidOutShape } from '@/lib/mindmap'
 import { CanvasToolbar, type CanvasTool } from './CanvasToolbar'
 import { ShapeRenderer } from './ShapeRenderer'
-import { Badge } from '@/components/ui'
+import { Minus, Plus } from 'lucide-react'
 
 interface CanvasViewProps {
   docId: string
@@ -21,6 +21,8 @@ interface CanvasViewProps {
   /** Shapes to add once, on an empty canvas this client can write to (a generated mind map). */
   drawOnce?: LaidOutShape[]
   onDrawn?: () => void
+  /** The page's title card, floated top left over the board. */
+  header?: ReactNode
 }
 
 interface DragState {
@@ -35,7 +37,7 @@ interface DragState {
 // User colors for multi-user cursors
 const CURSOR_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6']
 
-export function CanvasView({ docId, className, center, drawOnce, onDrawn }: CanvasViewProps) {
+export function CanvasView({ docId, className, center, drawOnce, onDrawn, header }: CanvasViewProps) {
   const {
     shapes,
     viewports,
@@ -282,24 +284,47 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn }: Canv
     }
   }, [selectedShapeId, deleteShape])
 
-  return (
-    <div data-testid="canvas-view" className={`flex flex-col h-full ${className ?? ''}`}>
-      <CanvasToolbar
-        disabled={!canWrite}
-        activeTool={activeTool}
-        activeColor={activeColor}
-        hasSelection={selectedShapeId !== null}
-        onToolChange={setActiveTool}
-        onColorChange={setActiveColor}
-        onDelete={handleDelete}
-        onUndo={undo}
-        onRedo={redo}
-      />
+  // Zoom buttons: zoom around the middle of the view, like the wheel does around the mouse.
+  const zoomTo = useCallback(
+    (next: number) => {
+      const svg = svgRef.current
+      if (!svg) return
+      const rect = svg.getBoundingClientRect()
+      const newZoom = Math.min(Math.max(next, 0.1), 5)
+      const cx = rect.width / 2
+      const cy = rect.height / 2
+      setPan({ x: cx - (cx - pan.x) * (newZoom / zoom), y: cy - (cy - pan.y) * (newZoom / zoom) })
+      setZoom(newZoom)
+    },
+    [zoom, pan],
+  )
 
-      <div className="relative flex-1 overflow-hidden bg-background">
-        {/* Edit the selected text box's words */}
-        {selectedShape?.type === 'text' && canWrite && (
-          <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-lg border border-border bg-card/95 p-1.5 shadow-sm">
+  // The board fills the space; everything else floats over it (title card,
+  // toolbar, status, zoom), so the page has one bar: the space bar above.
+  return (
+    <div data-testid="canvas-view" className={`relative h-full overflow-hidden bg-background ${className ?? ''}`}>
+      {/* Top left: the page's title card (board name, menu). */}
+      {header && <div className="absolute left-3 top-3 z-20 max-w-[calc(100%-1.5rem)] md:max-w-xs">{header}</div>}
+
+      {/* The tools: top centre on wide screens, bottom centre (thumb reach) on phones. */}
+      <div className="absolute inset-x-0 bottom-14 z-20 flex justify-center px-3 md:bottom-auto md:top-3 md:pl-[21rem] lg:pl-0">
+        <CanvasToolbar
+          disabled={!canWrite}
+          activeTool={activeTool}
+          activeColor={activeColor}
+          hasSelection={selectedShapeId !== null}
+          onToolChange={setActiveTool}
+          onColorChange={setActiveColor}
+          onDelete={handleDelete}
+          onUndo={undo}
+          onRedo={redo}
+        />
+      </div>
+
+      {/* Edit the selected text box's words, just under the tools. */}
+      {selectedShape?.type === 'text' && canWrite && (
+        <div className="absolute inset-x-0 top-[4.25rem] z-20 flex justify-center px-3 max-md:top-auto max-md:bottom-28">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-card/95 p-1.5 shadow-lg backdrop-blur">
             <label htmlFor="canvas-text" className="px-1 text-xs font-medium text-muted-foreground">
               Text
             </label>
@@ -313,110 +338,130 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn }: Canv
               className="w-56 rounded-md border border-input bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-        )}
-        {/* Connection status */}
-        <div className="absolute top-3 right-3 z-10">
-          {connected ? (
-            <Badge variant="success" className="text-xs">
-              <span className="w-1.5 h-1.5 bg-success rounded-full mr-1" />
-              Connected
-            </Badge>
-          ) : (
-            <Badge variant="secondary" className="text-xs">
-              <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse mr-1" />
-              Connecting...
-            </Badge>
-          )}
         </div>
+      )}
 
-        {/* Zoom indicator */}
-        <div className="absolute bottom-3 right-3 z-10">
-          <span className="text-xs text-muted-foreground bg-card/80 px-2 py-1 rounded border border-border">
-            {Math.round(zoom * 100)}%
-          </span>
-        </div>
-
-        <svg
-          ref={svgRef}
-          data-testid="canvas-svg"
-          className="w-full h-full"
-          style={{
-            cursor: activeTool === 'select' ? (isPanning ? 'grabbing' : 'default') : 'crosshair',
-          }}
-          onMouseDown={handleSvgMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        >
-          {/* Grid background */}
-          <defs>
-            <pattern
-              id="grid"
-              width={20 * zoom}
-              height={20 * zoom}
-              patternUnits="userSpaceOnUse"
-              x={pan.x % (20 * zoom)}
-              y={pan.y % (20 * zoom)}
-            >
-              <circle cx={1} cy={1} r={0.5} fill="currentColor" className="text-border" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-
-          {/* Canvas content with pan/zoom transform */}
-          <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
-            {/* Shapes */}
-            {shapes.map((shape) => (
-              <ShapeRenderer
-                key={shape.id}
-                shape={shape}
-                isSelected={shape.id === selectedShapeId}
-                onMouseDown={handleShapeMouseDown}
-              />
-            ))}
-
-            {/* Other users' cursors */}
-            {viewports.map((vp, i) => (
-              <g key={vp.userId} pointerEvents="none">
-                {/* Cursor dot */}
-                <circle
-                  cx={vp.x + vp.width / 2}
-                  cy={vp.y + 20}
-                  r={4 / zoom}
-                  fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
-                />
-                {/* User label */}
-                <text
-                  x={vp.x + vp.width / 2 + 8 / zoom}
-                  y={vp.y + 24 / zoom}
-                  fontSize={11 / zoom}
-                  fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
-                  fontFamily="system-ui, sans-serif"
-                >
-                  {getName(vp.userId) ?? 'Member'}
-                </text>
-              </g>
-            ))}
-          </g>
-
-          {/* Drag preview for shape creation */}
-          {dragState?.type === 'create' && (
-            <rect
-              x={0}
-              y={0}
-              width={0}
-              height={0}
-              fill="transparent"
-              stroke={activeColor}
-              strokeWidth={1}
-              strokeDasharray="4 3"
-              pointerEvents="none"
-              style={{ display: 'none' }}
-            />
-          )}
-        </svg>
+      {/* Bottom left: connection status, quiet while connected. */}
+      <div
+        role="status"
+        className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-2.5 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur"
+      >
+        <span
+          className={`size-2 rounded-full ${connected ? 'bg-correct' : 'animate-pulse bg-warning'}`}
+          aria-hidden="true"
+        />
+        {connected ? 'Connected' : 'Connecting…'}
       </div>
+
+      {/* Bottom right: zoom out, the level (click to reset), zoom in. */}
+      <div className="absolute bottom-3 right-3 z-20 flex items-center rounded-full border border-border bg-card/90 shadow-sm backdrop-blur">
+        <button
+          type="button"
+          onClick={() => zoomTo(zoom / 1.2)}
+          aria-label="Zoom out"
+          className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Minus className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => zoomTo(1)}
+          title="Reset to 100%"
+          data-testid="canvas-zoom"
+          className="min-w-12 px-1 text-xs tabular-nums text-muted-foreground hover:text-foreground"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={() => zoomTo(zoom * 1.2)}
+          aria-label="Zoom in"
+          className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Plus className="size-4" />
+        </button>
+      </div>
+
+      <svg
+        ref={svgRef}
+        data-testid="canvas-svg"
+        className="w-full h-full"
+        style={{
+          cursor: activeTool === 'select' ? (isPanning ? 'grabbing' : 'default') : 'crosshair',
+        }}
+        onMouseDown={handleSvgMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+      >
+        {/* Grid background */}
+        <defs>
+          <pattern
+            id="grid"
+            width={20 * zoom}
+            height={20 * zoom}
+            patternUnits="userSpaceOnUse"
+            x={pan.x % (20 * zoom)}
+            y={pan.y % (20 * zoom)}
+          >
+            <circle cx={1} cy={1} r={0.5} fill="currentColor" className="text-border" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        {/* Canvas content with pan/zoom transform */}
+        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+          {/* Shapes */}
+          {shapes.map((shape) => (
+            <ShapeRenderer
+              key={shape.id}
+              shape={shape}
+              isSelected={shape.id === selectedShapeId}
+              onMouseDown={handleShapeMouseDown}
+            />
+          ))}
+
+          {/* Other users' cursors */}
+          {viewports.map((vp, i) => (
+            <g key={vp.userId} pointerEvents="none">
+              {/* Cursor dot */}
+              <circle
+                cx={vp.x + vp.width / 2}
+                cy={vp.y + 20}
+                r={4 / zoom}
+                fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
+              />
+              {/* User label */}
+              <text
+                x={vp.x + vp.width / 2 + 8 / zoom}
+                y={vp.y + 24 / zoom}
+                fontSize={11 / zoom}
+                fill={CURSOR_COLORS[i % CURSOR_COLORS.length]}
+                fontFamily="system-ui, sans-serif"
+              >
+                {getName(vp.userId) ?? 'Member'}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        {/* Drag preview for shape creation */}
+        {dragState?.type === 'create' && (
+          <rect
+            x={0}
+            y={0}
+            width={0}
+            height={0}
+            fill="transparent"
+            stroke={activeColor}
+            strokeWidth={1}
+            strokeDasharray="4 3"
+            pointerEvents="none"
+            style={{ display: 'none' }}
+          />
+        )}
+      </svg>
     </div>
   )
 }

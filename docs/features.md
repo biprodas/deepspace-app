@@ -222,6 +222,16 @@ Build these end to end before anything in section 2.
   deletes entries older than 90 days. Everyday activity (joining, answering,
   editing) isn't logged.
 
+- **F18. Settings** (`/settings`): Profile (change your name, which is the
+  DeepSpace account name shown in every DeepSpace app; email and sign-in
+  method shown read-only, since real accounts take them from Google or
+  GitHub), Password (email-and-password accounts only; can sign out other
+  devices), Devices (signed-in sessions, sign out of the others), and
+  Preferences: theme (system, light, dark) and showing game reactions on
+  this device, and invite emails, which sync and which the server honours
+  by skipping the email (the in-app invite still arrives). Account changes
+  go to the platform auth worker through `/api/auth` (Better Auth).
+
 ## 3. Deliberately left out (explain in the write-up)
 
 | Left out | Why |

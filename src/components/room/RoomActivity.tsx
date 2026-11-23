@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { useDevicePref } from '@/lib/device-prefs'
 import type { RoomState } from '@/lib/use-room'
 import { PollCard } from './PollCard'
 import { PollComposer } from './PollComposer'
@@ -17,6 +18,7 @@ import { ReactionBar, ReactionOverlay, useRoomReactions } from './Reactions'
 export function RoomActivity({ state }: { state: RoomState }) {
   const { room, role, poll, myVotes } = state
   const { floating, send } = useRoomReactions(state)
+  const [showReactions] = useDevicePref('showReactions')
   const [composing, setComposing] = useState(false)
   // A closed poll can be hidden; a new poll shows again.
   const [hiddenPollId, setHiddenPollId] = useState<string | null>(null)
@@ -38,7 +40,8 @@ export function RoomActivity({ state }: { state: RoomState }) {
 
   return (
     <>
-      <ReactionOverlay floating={floating} />
+      {/* Settings → Preferences can turn others' floating reactions off on this device. */}
+      {showReactions && <ReactionOverlay floating={floating} />}
       {/* Reserves the dock's height at the end of the page so nothing ends up underneath it. */}
       <div aria-hidden="true" style={{ height: dockHeight }} />
       <div

@@ -7,6 +7,7 @@ import { gameActions } from './game'
 import { inviteActions } from './invite'
 import { noteActions } from './note'
 import { pollActions } from './poll'
+import { prefActions } from './prefs'
 import { quizActions } from './quiz'
 import { roomActions } from './room'
 import { spaceActions } from './space'
@@ -16,6 +17,7 @@ const registry = {
   ...roomActions,
   ...inviteActions,
   ...pollActions,
+  ...prefActions,
   ...spaceActions,
   ...noteActions,
   ...boardActions,

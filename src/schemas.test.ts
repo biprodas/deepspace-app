@@ -23,6 +23,7 @@ const GAME_COLLECTIONS = [
   'documents',
   'boards',
   'audit_log',
+  'user_prefs',
 ]
 const byName = new Map(schemas.map((s) => [s.name, s]))
 
@@ -51,6 +52,7 @@ describe('schemas', () => {
     ['round_flags', 'userId'],
     ['poll_votes', 'userId'],
     ['space_invites', 'inviteeId'],
+    ['user_prefs', 'userId'],
   ])('%s is readable by its owner only, admins included', (name, ownerField) => {
     const schema = byName.get(name)!
     expect(schema.ownerField).toBe(ownerField)

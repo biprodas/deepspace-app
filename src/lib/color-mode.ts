@@ -30,6 +30,31 @@ export function setColorMode(mode: ColorMode) {
   }
 }
 
+/** What the visitor chose: a fixed mode, or 'system' (no saved choice; the OS setting wins). */
+export type ColorModeChoice = ColorMode | 'system'
+
+export function colorModeChoice(): ColorModeChoice {
+  try {
+    const v = localStorage.getItem(COLOR_MODE_STORAGE_KEY)
+    return v === 'light' || v === 'dark' ? v : 'system'
+  } catch {
+    return 'system'
+  }
+}
+
+/**
+ * Forget the saved choice and follow the OS again. index.html's listener
+ * keeps following OS changes live once nothing is saved.
+ */
+export function followSystemColorMode() {
+  try {
+    localStorage.removeItem(COLOR_MODE_STORAGE_KEY)
+  } catch {
+    // Blocked storage: nothing was saved anyway.
+  }
+  document.documentElement.dataset.mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export function toggleColorMode() {
   setColorMode(currentColorMode() === 'dark' ? 'light' : 'dark')
 }

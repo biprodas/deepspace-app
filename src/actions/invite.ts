@@ -17,6 +17,7 @@ import { joinPath } from '../lib/join-code'
 import type { Quiz, Room, RoomInvite, RoomPlayer } from '../schemas/game-types'
 import type { SpaceInvite } from '../schemas/space-types'
 import { audit } from './audit'
+import { prefsFor } from './prefs'
 import {
   ActionError,
   defineAction,
@@ -225,7 +226,9 @@ export async function deliverInvites(d: Delivery): Promise<{ label: string; outc
     const { recordId: inviteId } = unwrap(created)
 
     let outcome: InviteOutcome = 'invited'
-    if (target.email && origin) {
+    // People with an account who turned invite emails off get the in-app invite only.
+    const wantsEmail = !target.inviteeId || (await prefsFor(d.tools, target.inviteeId)).inviteEmails
+    if (target.email && origin && wantsEmail) {
       const sent = await d.tools.integration('email/send', {
         to: target.email,
         ...inviteEmail({ ...d.email, link: `${origin}${d.joinPath}` }),

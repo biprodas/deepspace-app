@@ -67,7 +67,10 @@ Build these end to end before anything in section 2.
 - Host opens a room from an approved quiz → unique 6-character join code and
   a share link (`/join/K7QX9P`).
 - Players join by code or link; one row per player per room (`uniqueOn`);
-  max 50 players per room.
+  max 50 players per room. A code can be typed from anywhere: Home's code
+  field, or the header's Join (a popover on desktop, the top of the phone
+  menu). `/join/:code` tries the code as a game, then as a study space, so
+  people don't need to know which kind of code they have.
 - Lobby: live list of who's in the room and who's online (presence).
 - Host controls: start the game, remove a player. A removed player's
   `joinRoom` is refused.

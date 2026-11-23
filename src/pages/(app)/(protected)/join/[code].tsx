@@ -3,6 +3,10 @@
  * the (protected) layout; this page joins the room once and hands over to
  * /rooms/:roomId. `joinRoom` is idempotent, so a refresh or a second click
  * on the link just lands back in the room.
+ *
+ * Game and study-space codes look alike, so a code with no game is tried as
+ * a space next (`joinSpace`, also idempotent) and opens that space. The
+ * header's Join box and the Home code field both land here.
  */
 
 import { usePageTitle } from '@/lib/page-title'
@@ -13,12 +17,12 @@ import type { ReactNode } from 'react'
 import { callAction } from '@/lib/actions-client'
 import { parseJoinCode } from '@/lib/join-code'
 
-/** Refusals players can hit, keyed by `joinRoom`'s error code. */
+/** Refusals people can hit, keyed by `joinRoom`'s error code (`space:` + `joinSpace`'s). */
 const REFUSALS: Record<string, { icon: ReactNode; title: string; help: string }> = {
   not_found: {
     icon: <SearchX />,
-    title: 'No game with that code',
-    help: 'Check the code with your host.',
+    title: 'No game or space with that code',
+    help: 'Check the code with whoever shared it.',
   },
   room_full: {
     icon: <Users />,
@@ -35,6 +39,16 @@ const REFUSALS: Record<string, { icon: ReactNode; title: string; help: string }>
     title: 'This game has finished',
     help: 'Ask your host for the code of their next game.',
   },
+  'space:removed': {
+    icon: <Ban />,
+    title: 'You were removed from this space',
+    help: 'The owner removed you, so this code no longer works for you.',
+  },
+  'space:space_full': {
+    icon: <Users />,
+    title: 'This space is full',
+    help: 'Ask the owner to make room, then try the code again.',
+  },
 }
 
 export default function JoinPage() {
@@ -49,10 +63,19 @@ export default function JoinPage() {
   useEffect(() => {
     if (!code || sent.current) return
     sent.current = true
-    void callAction<{ roomId: string }>('joinRoom', { code }).then((result) => {
-      if (result.success) navigate(`/rooms/${result.data.roomId}`, { replace: true })
-      else setRefusal({ code: result.code, error: result.error })
-    })
+    void (async () => {
+      const room = await callAction<{ roomId: string }>('joinRoom', { code })
+      if (room.success) return navigate(`/rooms/${room.data.roomId}`, { replace: true })
+      if (room.code !== 'not_found') return setRefusal({ code: room.code, error: room.error })
+      // No game with this code: it may be a study space's.
+      const space = await callAction<{ spaceId: string }>('joinSpace', { code })
+      if (space.success) return navigate(`/spaces/${space.data.spaceId}`, { replace: true })
+      setRefusal(
+        space.code === 'not_found'
+          ? { code: 'not_found', error: space.error }
+          : { code: `space:${space.code}`, error: space.error },
+      )
+    })()
   }, [code, navigate])
 
   const known = refusal?.code ? REFUSALS[refusal.code] : undefined
@@ -77,7 +100,7 @@ export default function JoinPage() {
         </>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground">Joining room</p>
+          <p className="text-sm text-muted-foreground">Joining</p>
           <p className="font-mono text-4xl font-bold tracking-[0.2em]">{code}</p>
           <span
             aria-hidden="true"

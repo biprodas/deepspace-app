@@ -31,6 +31,7 @@ import { nav } from '../nav'
 import { cn } from '../lib/utils'
 import { signInPath } from '../lib/auth-redirect'
 import { ColorModeToggle } from './ColorModeToggle'
+import { QuickJoinButton, QuickJoinForm } from './QuickJoin'
 import {
   Avatar,
   AvatarFallback,
@@ -84,6 +85,8 @@ export default function Navigation() {
   const accountNav = visibleNav.filter((item) => item.placement === 'account')
 
   const isActive = (item: (typeof nav)[number]) => location.pathname.startsWith(item.path)
+  // Join with a code from anywhere, except Home (its big code field is right there) and the join page itself.
+  const showJoin = location.pathname !== '/home' && !location.pathname.startsWith('/join')
 
   // Desktop: text pills. They stay inline (not flex) so their words keep the
   // shared text baseline with the logo; the current section is tinted.
@@ -146,6 +149,8 @@ export default function Navigation() {
           </div>
 
           <div className="flex-1" />
+
+          {showJoin && <QuickJoinButton className="hidden md:inline-flex" />}
 
           <ColorModeToggle />
 
@@ -247,6 +252,11 @@ export default function Navigation() {
             data-testid="mobile-nav"
             className="flex animate-in flex-col gap-0.5 border-t border-border px-2 py-2 fade-in-0 slide-in-from-top-2 md:hidden"
           >
+            {showJoin && (
+              <div className="mb-1 border-b border-border px-1 pb-3 pt-1">
+                <QuickJoinForm onJoined={() => setMobileMenuOpen(false)} />
+              </div>
+            )}
             {mainNav.map(mobileLink)}
           </div>
         )}

@@ -2,13 +2,20 @@
  * Settings → Devices: where you're signed in (Better Auth sessions), with
  * "Sign out of other devices". This device is marked and never listed as
  * one to sign out.
+ *
+ * Listing and signing out devices need a recent sign-in: after about a day
+ * the auth service refuses them ("session not fresh"). Then the card says so
+ * and offers "Sign in again", which comes back here, instead of showing an
+ * empty list.
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import { authClient } from 'deepspace'
-import { Laptop, Smartphone } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { authClient, signOut } from 'deepspace'
+import { Laptop, LockKeyhole, Smartphone } from 'lucide-react'
+import { signInPath } from '@/lib/auth-redirect'
 import { Button, ConfirmModal, useToast } from '@/components/ui'
-import { SettingsCard, authError } from './settings-ui'
+import { SettingsCard, authError, isNotFresh } from './settings-ui'
 
 interface Session {
   id: string
@@ -36,12 +43,30 @@ export function SessionsCard() {
   const [confirming, setConfirming] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const [showAll, setShowAll] = useState(false)
+  /** The auth service wants a recent sign-in before showing or changing devices. */
+  const [needsSignIn, setNeedsSignIn] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reauthing, setReauthing] = useState(false)
+  const navigate = useNavigate()
 
   const load = useCallback(async () => {
     const [list, current] = await Promise.all([authClient.listSessions(), authClient.getSession()])
-    setSessions((list.data as Session[] | null) ?? [])
     setCurrentToken(current.data?.session.token ?? null)
+    if (isNotFresh(list)) {
+      setNeedsSignIn(true)
+      return
+    }
+    setNeedsSignIn(false)
+    setLoadError(list.error ? authError(list) : null)
+    setSessions((list.data as Session[] | null) ?? [])
   }, [])
+
+  /** Signs out here and goes to sign-in, which brings you back to Devices. */
+  async function signInAgain() {
+    setReauthing(true)
+    await signOut()
+    navigate(signInPath('/settings/devices'), { replace: true })
+  }
 
   useEffect(() => {
     void load()
@@ -58,8 +83,29 @@ export function SessionsCard() {
 
   return (
     <SettingsCard id="devices" title="Devices" description="Browsers and devices where you’re signed in.">
-      {sessions === null ? (
+      {needsSignIn ? (
+        <div data-testid="sessions-reauth" className="rounded-lg border border-border bg-muted/40 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <LockKeyhole className="size-4 text-muted-foreground" aria-hidden="true" /> Sign in again to see your devices
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            For your security, seeing and signing out devices needs a recent sign-in. You’ll come straight back here.
+          </p>
+          <Button size="sm" className="mt-3" loading={reauthing} onClick={() => void signInAgain()}>
+            Sign in again
+          </Button>
+        </div>
+      ) : sessions === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : loadError ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <p role="alert" className="text-destructive">
+            Couldn’t load your devices: {loadError}
+          </p>
+          <Button variant="outline" size="sm" onClick={() => void load()}>
+            Try again
+          </Button>
+        </div>
       ) : (
         <>
           <ul data-testid="sessions-list" className="divide-y divide-border rounded-lg border border-border">
@@ -114,9 +160,11 @@ export function SessionsCard() {
         loading={signingOut}
         onConfirm={async () => {
           setSigningOut(true)
-          const err = authError(await authClient.revokeOtherSessions())
+          const res = await authClient.revokeOtherSessions()
           setSigningOut(false)
           setConfirming(false)
+          if (isNotFresh(res)) return setNeedsSignIn(true)
+          const err = authError(res)
           if (err) toast.error(err)
           else toast.success('Other devices are signed out')
           await load()

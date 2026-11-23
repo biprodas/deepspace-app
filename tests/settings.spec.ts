@@ -47,8 +47,11 @@ test('password, devices and preferences', async ({ users }) => {
   await page.getByRole('button', { name: 'Change password' }).click()
   await expect(page.getByTestId('password-error')).toHaveText('That current password isn’t right.')
 
+  // Devices lists sessions, or (when the test account's sign-in is over a day old) asks to sign in again.
   await nav.getByRole('link', { name: 'Devices' }).click()
-  await expect(page.getByTestId('sessions-list')).toContainText('This device', { timeout: 15_000 })
+  const list = page.getByTestId('sessions-list')
+  await expect(list.or(page.getByTestId('sessions-reauth'))).toBeVisible({ timeout: 15_000 })
+  if (await list.isVisible()) await expect(list).toContainText('This device')
 
   await nav.getByRole('link', { name: 'Preferences' }).click()
   await expect(page).toHaveURL(/\/settings\/preferences$/)
@@ -74,4 +77,23 @@ test('password, devices and preferences', async ({ users }) => {
   await page.getByTestId('pref-reactions').click()
   await page.getByTestId('pref-invite-emails').click()
   await expect(page.getByTestId('pref-invite-emails')).toHaveAttribute('aria-checked', 'true')
+})
+
+test('Devices asks to sign in again when the sign-in is too old, instead of showing an empty list', async ({ users }) => {
+  const [u] = await users(1)
+  const page = u.page
+  // The auth service refuses device listing once a session is over a day old.
+  await page.route('**/api/auth/list-sessions', (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Session is not fresh', code: 'SESSION_NOT_FRESH' }),
+    }),
+  )
+  await page.goto('/settings/devices')
+  const prompt = page.getByTestId('sessions-reauth')
+  await expect(prompt).toContainText('Sign in again to see your devices', { timeout: 15_000 })
+  // Not clicked: signing out would end the shared test account's session for other tests.
+  await expect(prompt.getByRole('button', { name: 'Sign in again' })).toBeEnabled()
+  await expect(page.getByTestId('sessions-list')).toHaveCount(0)
 })

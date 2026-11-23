@@ -34,8 +34,18 @@ export const PROVIDER_LABEL: Record<string, string> = {
 }
 
 /** Better Auth returns `{ data, error }`; this reads the error's message, if any. */
+/**
+ * Some account actions (listing devices, signing others out) need a recent
+ * sign-in; the auth service refuses them with SESSION_NOT_FRESH once a
+ * session is older than about a day.
+ */
+export function isNotFresh(res: { error?: { code?: string; status?: number } | null }): boolean {
+  return res.error?.code === 'SESSION_NOT_FRESH'
+}
+
 export function authError(res: { error?: { message?: string; code?: string } | null }): string | null {
   if (!res.error) return null
   if (res.error.code === 'INVALID_PASSWORD') return 'That current password isn’t right.'
+  if (isNotFresh(res)) return 'For your security, sign in again first.'
   return res.error.message || 'Something went wrong. Try again.'
 }

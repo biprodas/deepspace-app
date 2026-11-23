@@ -260,7 +260,9 @@ Build these end to end before anything in section 2.
   DeepSpace account name shown in every DeepSpace app; email and sign-in
   method shown read-only, since real accounts take them from Google or
   GitHub), Password (email-and-password accounts only; can sign out other
-  devices), Devices (signed-in sessions, sign out of the others), and
+  devices), Devices (signed-in sessions, sign out of the others; these need
+  a sign-in from the last day, so an older one sees "Sign in again", which
+  comes back to Devices, instead of an empty list), and
   Preferences: theme (system, light, dark) and showing game reactions on
   this device, and invite emails, which sync and which the server honours
   by skipping the email (the in-app invite still arrives). Account changes

@@ -544,6 +544,9 @@ mouse, pen and touch, with pinch zoom.
   - Profile: rename (the DeepSpace account name, so it shows in other
     DeepSpace apps too).
   - Password: change it (email-and-password accounts only).
-  - Devices: list sessions and sign out the others.
+  - Devices: list sessions and sign out the others. Better Auth refuses both
+    with `SESSION_NOT_FRESH` once the sign-in is about a day old; the card
+    then offers "Sign in again" (sign out, then sign-in returning to
+    `/settings/devices`).
   - Preferences: theme including "System", game reactions on or off (this
     device), invite emails on or off (synced in `user_prefs`).

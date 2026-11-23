@@ -10,25 +10,27 @@ countdown, and see the answer, the source and the rankings after each
 question.
 
 The server owns the answer key, the clock and the score. Players never
-receive the correct answer before the reveal, and answers after the deadline
-are refused by the server.
+receive a question before it is asked or its answer before the reveal, and
+answers after the deadline are refused by the server.
 
-> **Status:** live at <https://studyarena.app.space/> (deployed 2026-11-23).
+> **Status:** live at <https://studyarena.app.space/> (release #4, 2026-11-23).
+> Submission note: [docs/submission.md](docs/submission.md).
 
 ## Features
 
 - Quizzes generated from Wikipedia or pasted notes, with host review and approval
 - Rooms with a 6-character join code and share link
-- Live lobby with presence
+- Live lobby with presence, and an optional planned start with a countdown
 - Server-run game loop: timed questions, one answer per player, pause / skip
 - Reveal with answer distribution, explanation and source
 - Speed-based scoring, live rankings, final podium
 - Polls, "still confused" flags and emoji reactions during a game
 - Game history and an all-time leaderboard
 - Study spaces: a home per group with members, a join code, invites and games
-- Shared notes written together live (Tiptap + Yjs), turned into a quiz in one click
-- Whiteboards with pen, shapes, arrows, sticky notes, eraser and PNG export,
-  and AI mind maps drafted by Claude from a Wikipedia topic
+- Shared notes written together live (Tiptap + Yjs), turned into a quiz in one click;
+  AI drafts notes from a topic and reviews a note with fixes you choose to apply
+- Whiteboards with live cursors, pen, shapes, arrows, sticky notes, eraser and
+  PNG export, and AI mind maps drafted by Claude from a Wikipedia topic
 - Admin console with users, API usage, credits, data and an audit log;
   account settings for profile, password, devices and preferences
 
@@ -42,9 +44,10 @@ DeepSpace SDK on Cloudflare Workers (auth, synced records, permissions,
 presence, server actions, background jobs, integrations) · React 19 · Vite ·
 TypeScript · Tailwind CSS 4 · Zod · Playwright + Vitest.
 
-Integrations: `anthropic/chat-completion` (questions and mind maps) and
-`wikipedia/*` (source text), called from server code through the DeepSpace
-integration proxy. No API keys live in this repo or in the browser.
+Integrations: `anthropic/chat-completion` (questions, mind maps, AI in notes),
+`wikipedia/*` (source text) and `email/send` (invites), called only from
+server code through the DeepSpace integration proxy; the browser proxy
+refuses them. No API keys live in this repo or in the browser.
 
 ## Quick start
 

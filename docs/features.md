@@ -36,8 +36,8 @@ Build these end to end before anything in section 2.
     `wikipedia/get-page-content`, or
   - **Pasted notes** (plain text, length-capped).
 - Options: question count (5–10), difficulty (easy / mixed / hard).
-- Server action `generateQuestions` calls `anthropic/chat-completion` for
-  structured JSON per question:
+- `createQuiz` queues a `generate-questions` background job, which calls
+  `anthropic/chat-completion` for structured JSON per question:
   `{ prompt, options[4], correctIndex, explanation, sourceQuote }`.
   `sourceUrl` is set by the server from the page it fetched (notes show
   "From your notes" instead of a link).
@@ -56,8 +56,14 @@ Build these end to end before anything in section 2.
 - Answer, explanation and quote live in `answer_keys`, never in
   `questions`. DeepSpace permissions are per record, not per field, so the
   answer has to be in a separate collection players can't read.
+- Questions themselves are owner-only too: a player who could read a quiz's
+  questions could look them up before they're asked. When a question
+  starts, the server copies its prompt and options onto the round, which
+  is the first time a player receives it (see F4).
 - Spend guard: capped questions per call and generation calls per user per
-  day.
+  day. Claude, Wikipedia and email are reachable only from server code: the
+  browser's integration proxy refuses them (`serverOnly` in
+  `src/integrations.ts`), so nobody can call them around the caps.
 - Prompt injection: pasted notes are untrusted input. The schema check and
   the quote-in-source check bound what injected instructions can achieve.
 - **Done when:** a host turns a topic and a pasted note into approved
@@ -89,7 +95,8 @@ Build these end to end before anything in section 2.
   `paused`. All state lives on the room and its current round, so any client can
   rebuild its screen from them.
 - **The server owns the clock.** `startQuestion` creates a round with
-  `deadline = now + timeLimit`. Clients only draw a countdown toward it,
+  `deadline = now + timeLimit`, and copies the question's prompt, options
+  and the game's question count onto it (players can't read `questions`). Clients only draw a countdown toward it,
   corrected by a server-time offset measured on connect.
 - `submitAnswer(roundId, choiceIndex)` is refused if:
   - the caller isn't a (non-removed) player, **or is the host** (the host can
@@ -163,7 +170,7 @@ Build these end to end before anything in section 2.
   (templates: confidence check, ready?, pace; or 2–6 custom options). One poll
   is open at a time. Players vote and can change their vote until it closes;
   votes are private and only the poll's counts are published, recomputed on
-  every vote. After a reveal, players can mark "still confused" once per
+  every vote. Open polls close when the game ends. After a reveal, players can mark "still confused" once per
   question, and the host sees the count. Emoji reactions travel as presence
   state, so nothing is stored and they cover most of what chat would, without
   free text to moderate.
@@ -211,8 +218,11 @@ Build these end to end before anything in section 2.
   gets no note and no socket, and a pinned reveal shows in the session note.
 - **F15. Whiteboards and AI mind maps in a space:** members draw together on
   a board (pen, rectangles, ellipses, arrows, lines, text boxes, sticky
-  notes; each other's cursors with names), using DeepSpace's `canvas`
-  feature. Colour, stroke and fill; resize handles; text written in place;
+  notes), using DeepSpace's `canvas` feature. Each member sees the others'
+  cursors live, with names: pointer positions travel as presence state in
+  board coordinates (at most every 40 ms, eased between updates), so a
+  cursor sits on the same spot of the drawing whatever each viewer's pan and
+  zoom. Colour, stroke and fill; resize handles; text written in place;
   duplicate, copy and paste; an eraser that removes whatever it's dragged
   over; "Clear board" (confirmed, with a one-click Restore for 15 seconds);
   rename or delete a board from the space's list (delete: its creator or the
@@ -232,8 +242,9 @@ Build these end to end before anything in section 2.
   A mind map opens zoomed to fit; then it's an ordinary board.
   5 mind maps per user per day (credit guard). Lines and arrows don't follow
   shapes that are moved, and only one shape is selected at a time.
-  **Done when:** a member's shape appears for the other, a member who leaves
-  gets no board and no socket, and a generated map is drawn once.
+  **Done when:** a member's shape appears for the other, a member's cursor
+  follows their pointer on the other's screen, a member who leaves gets no
+  board and no socket, and a generated map is drawn once.
 
 - **F16. Admin console** (`/admin`, admins only, from the account menu): a
   sidebar of Overview (counts of users, quizzes, games, spaces, notes,
@@ -241,14 +252,19 @@ Build these end to end before anything in section 2.
   API usage (Claude drafts and tokens, mind maps, Wikipedia lookups, invite
   emails; last 30 days and all time, from the app's own records, since the
   billing ledger isn't readable from the app), Credits (the admin's DeepSpace
-  balance, with links to the dashboard) and Data (the JSON export). Numbers
-  come from owner-only actions (`adminSummary`, `exportData`).
+  balance, with links to the dashboard) and Data (the JSON export, and
+  "Update older records", a one-off repair for data saved before questions
+  became owner-only). Numbers come from owner-only actions (`adminSummary`,
+  `exportData`, `backfillQuestionOwners`), so an admin who isn't the owner
+  sees Users and the Audit log but not Overview, API usage or Data.
 
 - **F17. Audit log** (admin console → Audit log): who removed, deleted,
   spent or changed what. Server actions append an entry after moderation
   (space member or game player removed, co-host added or removed),
   deletions (space, quiz, note, board), paid calls (AI quiz drafts, mind
-  maps, invite emails as one entry with a count) and the data export. Role
+  maps, AI note drafts and reviews, invite emails as one entry with a count)
+  and the data export. The daily limits on mind maps and AI in notes count
+  these entries, so deleting what a call made doesn't give the use back. Role
   changes go through the platform, so the console reports them with
   `logRoleChange` (admins only), which marks the entry *verified* when the
   user already has the new role, else *reported by browser*. The
@@ -280,7 +296,8 @@ Build these end to end before anything in section 2.
 | Image / audio questions | Source licensing and extra rendering work |
 | File uploads for notes | Pasting text covers the need without file parsing |
 | Draft/published states, duplicate quiz, points per question | More forms, no added depth; approval already covers "ready to play" |
-| Cron / auto-advance | Host drives the game; deadlines are checked on write, so nothing needs scheduling |
+| Auto-advance | Host drives the game; deadlines are checked on write, so the game needs no scheduler (the one cron task prunes the audit log) |
+| Other integrations | Weighed against what the game needs. Google Calendar: a scheduled game offers an `.ics` file instead, which works with any calendar and needs no OAuth or per-user connection. Image generation: questions are text with a quoted source; images add cost and licensing questions without making them better. Slack or Discord notifications: in-app invites and email already reach people. Payments (Stripe): nothing to sell. Voice: above. |
 
 ---
 
@@ -300,34 +317,47 @@ Key points:
 
 ## 5. Server actions
 
+All in `src/actions/`. Actions run with record permissions off, so each one
+checks its caller itself.
+
 | Action | Caller | Does |
 |---|---|---|
-| `generateQuestions` | quiz owner | Source → Claude → validate (retry once) → write draft questions + answer keys |
-| `regenerateQuestion` | quiz owner | Replace one question from the same source |
-| `updateQuestion` | quiz owner | Edit / approve / reorder a question and its answer key |
-| `createRoom` | quiz owner | Room + unique code from an approved quiz |
+| `createQuiz` | member | By hand: a ready quiz. From Wikipedia or notes: checks the daily cap, resolves topics (with a "did you mean"), creates the quiz and queues the `generate-questions` job |
+| `regenerateQuestion` | quiz owner | Replace one question from the same source (same job, count 1) |
+| `renameQuiz` / `deleteQuiz` | quiz owner | Rename / delete with its questions and answer keys (not while a game of it is open) |
+| `addQuestion` / `updateQuestion` / `moveQuestion` / `deleteQuestion` | quiz owner | Edit a question and its answer key together; frozen while a game of the quiz is open |
+| `createRoom` | quiz owner | Room + unique code from an approved quiz (returns the open game instead if there is one) |
+| `scheduleRoom` | host | Set or clear the planned start (lobby only, within 30 days) |
 | `joinRoom` | member | Add caller to `room_players` (idempotent; refuses removed players and full rooms) |
 | `removePlayer` | host | Mark a player removed |
-| `startQuestion` | host / co-host | New round for the next question + deadline, status `question` |
+| `addCoHost` / `removeCoHost` | host | Promote a lobby player to co-host / drop a co-host |
+| `recentPlayers` / `invitePlayers` | host / co-host | People from your earlier games / invite them, or emails, to a game |
+| `dismissInvite` | invitee | Hide an invite from Home |
+| `getServerTime` | member | `serverNow` for the clock offset |
+| `startQuestion` | host / co-host | New round for the next question (prompt and options copied on) + deadline, status `question` |
 | `submitAnswer` | player | All F4 checks; score on server |
 | `revealQuestion` | host / co-host | Fill the round's reveal fields, recompute standings, `final` after the last question |
 | `skipQuestion` | host / co-host | Mark the round skipped, move on without scoring |
 | `pauseRoom` / `resumeRoom` | host / co-host | Store the round's remaining time / set a fresh deadline |
-| `endRoom` | host | End early: status `cancelled`, keep results so far |
+| `endRoom` | host | End early: status `cancelled`, keep results so far, close open polls |
 | `createPoll` / `closePoll` | host / co-host | Open a poll (closing any open one) / close it |
-| `votePoll` | player | Cast or change a vote; recompute the poll's counts |
+| `votePoll` | player | Cast or change a vote while the game is open; recompute the poll's counts |
 | `flagConfused` | player | Mark a revealed question "still confused"; recompute the round's count |
-| `createSpace` / `updateSpace` / `deleteSpace` | member / owner / owner | Space with a join code and the owner's membership / rename / delete with memberships and invites |
+| `createSpace` / `updateSpace` / `deleteSpace` | member / owner / owner | Space with a join code and the owner's membership / rename / delete with memberships, invites, notes and boards |
 | `joinSpace` / `leaveSpace` | member | Join by code (refuses removed members) / leave (can rejoin) |
 | `removeMember` | owner | Mark a membership removed |
 | `inviteToSpace` | space member | Invite by account or email, as `invitePlayers` does for games |
 | `createNote` / `renameNote` | space member | Note row (its text is edited live over Yjs) / rename |
 | `deleteNote` | note's author or space owner | Delete a note |
 | `sessionNote` | space member | The session note for a game in a space, created on first use |
+| `draftNote` / `reviewNote` | space member | AI notes from a Wikipedia topic / AI review with suggested fixes (10 a day together) |
 | `createBoard` / `renameBoard` | space member | Whiteboard row (shapes are drawn live over the canvas route) / rename |
 | `createMindMap` | space member | Wikipedia topic → Claude → checked tree, stored on a new board (5 a day) |
 | `markMindMapDrawn` | the map's generator | Record that the map was drawn, so it isn't drawn twice |
 | `deleteBoard` | board's creator or space owner | Delete a board |
+| `updatePreferences` | member | Save synced preferences (invite emails) |
+| `adminSummary` / `exportData` / `backfillQuestionOwners` | app owner | Console numbers / JSON export / one-off repair of older records |
+| `logRoleChange` | admin | Record a role change made through the platform, *verified* or *reported* |
 
 Every host-only action checks the caller against the room on the server.
 
@@ -343,21 +373,27 @@ Every host-only action checks the caller against the room on the server.
 
 ## 7. Verification
 
-**Automated** (`npx deepspace test run all`, two users):
-- [ ] Late answer, duplicate answer, non-current-question answer, host answer → refused.
-- [ ] Removed player rejoin → refused.
-- [ ] Non-owner `generateQuestions` / `updateQuestion` / `startQuestion` → refused.
-- [ ] Scoring formula and tie-break give the expected standings.
+**Automated** (`npm run validate`, then `npx deepspace test run all` with
+two or three test accounts). Last full run, 2026-11-23: all unit tests pass;
+63 Playwright tests pass and 2 are skipped (the paid ones that call Claude
+and Wikipedia, which run with `RUN_PAID_TESTS=1`).
+- [x] Late answer, duplicate answer, non-current-question answer, host answer → refused (`game.spec.ts`).
+- [x] No `correctIndex` or explanation in any frame a player receives before the reveal (`game.spec.ts`).
+- [x] No question reaches a player before its round starts (`game.spec.ts`).
+- [x] Removed player rejoin → refused (`rooms.spec.ts`, `resilience.spec.ts`).
+- [x] Non-owner quiz edits and non-host game actions → refused (`quizzes.spec.ts`, `game.spec.ts`, `generation.spec.ts`).
+- [x] Scoring formula and tie-break give the expected standings (`scoring.test.ts`; three accounts in `game.spec.ts`).
+- [x] Refresh mid-question (player and host), pause/resume, late join, dropped socket (`game.spec.ts`, `resilience.spec.ts`).
+- [x] Non-members and removed members get nothing from a space, its notes or its boards (`spaces.spec.ts`, `notes.spec.ts`, `boards.spec.ts`).
+- [x] A member's board cursor follows their pointer on the other's screen (`boards.spec.ts`).
+- [x] A generated `sourceQuote` must appear in its source (`generation.test.ts`, on a Wikipedia-shaped fixture).
 
-**By hand** (what I check myself, not the agent):
-- [ ] Player's WebSocket frames contain no `correctIndex` before reveal.
-- [ ] Every generated `sourceQuote` appears in its source text.
-- [ ] Unapproved questions never appear in a game.
-- [ ] Two real accounts: lobby, game, reveal, standings stay in sync.
-- [ ] Refresh mid-question (player and host) restores state; pause/resume keeps answers working.
-- [ ] Player screens usable on a phone.
-- [ ] No API keys in client bundle or repo; integrations go through the worker.
-- [ ] Deployed URL works on the same flow.
+**By hand, on the deployed URL** (release #4, 2026-11-23):
+- [x] Two real accounts: lobby, game, reveal and standings stay in sync.
+- [x] AI quizzes from Wikipedia and from notes; unapproved questions never appear in a game.
+- [x] Player screens on a phone.
+- [x] Spaces, shared notes, whiteboards and mind maps with two accounts.
+- [x] The owner's admin console and `/admin/data`.
 
 ## 8. Build order (5 days)
 
@@ -372,13 +408,16 @@ Every host-only action checks the caller against the room on the server.
 The game loop is built on hand-written questions first, so AI generation can
 slip without breaking the core.
 
-## 9. Write-up notes (fill in as we go)
+**What happened:** the plan held, and ran ahead of schedule. Day 1 (Nov 21):
+specs, the landing page, sign-in, and M0–M6 (the whole quiz game, AI
+generation, resilience, leaderboard and history). Day 2 (Nov 22): first
+deploy, then polls, study spaces, shared notes, whiteboards, mind maps and
+the admin console. Day 3 (Nov 23): settings, whiteboard tools, AI in notes,
+scheduled start times, a code review with fixes, the full test run and
+release #4. The rest of the window was left for checking and the write-up.
 
-- **Main tradeoff:** answers scored by a server action against an owner-only
-  answer key, using the server's clock. Costs a round trip per answer; the
-  only way scores are trustworthy, since anything sent to the client can be
-  read and the client's clock can be changed.
-- **Second tradeoff:** sign-in required for players instead of guest join.
-- **What the agent did:**
-- **What I verified / changed myself:**
-- **Unfinished + what I'd do next:**
+## 9. Write-up
+
+The submission note is [submission.md](./submission.md): what was built,
+the integrations and why not others, the main tradeoff, what the agent did,
+what I verified, and what's unfinished.

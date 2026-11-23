@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Live at [studyarena.app.space](https://studyarena.app.space/) since 2026-11-23 |
+| **Status** | Live at [studyarena.app.space](https://studyarena.app.space/): first deployed 2026-11-22; current release #4, 2026-11-23 |
 | **Owner** | Biprodas Roy |
 | **Context** | DeepSpace build exercise, 5-day submission window |
 | **Related** | [features.md](./features.md) (feature spec) · [trd.md](./trd.md) (technical design) · [schema.md](./schema.md) (data) |
@@ -159,7 +159,7 @@ Member: notes (live) ──"Make a quiz"──► quiz → game in the space
 |---|---|
 | **Must (P0)** | Sign-in; AI quiz drafting from Wikipedia or notes with source check; host review and approval; rooms with code/link; live lobby; server-run game loop (timer, one answer, pause/skip/end); reveal with explanation and source; speed-based scoring; final screen with wrong answers; reconnect and late join |
 | **Should (P1)** | Co-host role; game history; all-time leaderboard |
-| **Added after the first release** | Polls, "still confused" flags and reactions; study spaces; shared notes; whiteboards and AI mind maps; admin console; audit log; account settings; a Join box in the header for game or space codes |
+| **Added after the first release** | Polls, "still confused" flags and reactions; study spaces; shared notes with AI drafting and review; whiteboards with live cursors, and AI mind maps; planned start times with a countdown; admin console; audit log; account settings; a Join box in the header for game or space codes |
 | **Won't (this version)** | Guest join, voice, payments, public room browser, teams, chat, image/audio questions, file uploads, extra question types |
 
 Reasons for each "won't": [features.md §3](./features.md#3-deliberately-left-out-explain-in-the-write-up).
@@ -174,7 +174,8 @@ tracked in production.
 | Time from topic to approved 10-question quiz | < 5 min |
 | Generated questions whose source sentence is found in the source | 100% (enforced) |
 | Generated questions the host approves without edits | ≥ 70% on 5 test topics |
-| Correct answer visible to players before reveal | Never (checked in DevTools) |
+| Correct answer visible to players before reveal | Never (automated: no answer in any WebSocket frame a player receives) |
+| A question visible to players before it's asked | Never (automated, same way) |
 | Late, duplicate or host answers accepted | 0 (automated tests) |
 | Two players see identical standings after each reveal | Always |
 | Player state restored after refresh mid-question | Always |
@@ -186,6 +187,8 @@ tracked in production.
 | Decision | Why | Cost |
 |---|---|---|
 | Server owns the answer key, clock and score | Only way scores are trustworthy | A server round trip per answer |
+| Questions are owner-only; each one is copied onto its round when asked | A player can't read ahead and look answers up | Rounds repeat the question text; older data needed a one-off backfill |
+| Claude, Wikipedia and email only from server code | The owner pays for them; server code is where the daily caps, membership checks and audit log are | No browser-side AI calls (none are needed) |
 | Host must approve every AI question | AI drafts, human decides; catches bad questions | One extra step before playing |
 | Source sentence required for every question | Makes made-up questions detectable and teaches where facts come from | Some valid questions get dropped |
 | Everyone signs in, no guest join | One person can't answer twice under two identities | More friction to join |
@@ -213,7 +216,7 @@ tracked in production.
 | Wikipedia text is noisy, so source checks fail | Fewer usable questions | Clean HTML to text; normalise before matching |
 | Sign-in friction for players | Slower joins | Share link goes straight to sign-in, then the room |
 | Realtime edge cases (refresh, late join, host drop) | Broken games | State lives on the server; tested with two accounts |
-| AI cost per quiz | Owner credit drain | Per-call and per-user daily caps (10 quiz drafts, 5 mind maps and 10 AI note uses a day) |
+| AI cost per quiz | Owner credit drain | Per-call and per-user daily caps (10 quiz drafts, 5 mind maps and 10 AI note uses a day); owner-billed integrations closed to the browser, so the caps can't be bypassed |
 | A space's data leaks to non-members | Private notes exposed | The `'team'` read rule, plus membership checks on the notes and boards connections; tested |
 | 5-day window | Unfinished core | Game loop built first on hand-written questions; AI added on Day 3 |
 
@@ -223,5 +226,7 @@ tracked in production.
   its own owner-only admin console (`/admin`, trd.md §13 and §16).
 - ~~GitHub or DeepSpace as the source repository?~~ Settled: GitHub (trd.md
   §12).
-- What does the Anthropic integration return for token usage? Determines
-  whether `generations` can record cost.
+- ~~What does the Anthropic integration return for token usage?~~ Settled:
+  the reply carries `usage.input_tokens` / `output_tokens`; each
+  `generations` row records them and the admin console's API usage page
+  totals them.

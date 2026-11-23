@@ -4,14 +4,13 @@ Companion to [features.md](./features.md) (what), [trd.md](./trd.md) (how)
 and [schema.md](./schema.md) (data). This doc says **in what order** the work
 is built and settles the gaps the TRD left open.
 
-**Status (2026-11-23):** **deployed** at <https://studyarena.app.space/>.
-The live release is #2 (`rel_01M83PAKCVECTWHD04X22D8ZYB`, 2026-11-23 07:53
-UTC), built from `main` at `a0fcb01`; the first deploy was #1 on
-2026-11-22 (`rel_01M8141SF8M370K8H3ME7CHYC8`). The live release has the
-code for M0–M8 and the landing update. Still open: `OWNER_USER_ID` isn't set
-on the live app, and the hand-checked parts of
-[features.md §7](./features.md#7-verification) haven't been done. See
-[§6 Next steps](#6-next-steps).
+**Status (2026-11-23):** **deployed and checked** at
+<https://studyarena.app.space/>. The live release is #4
+(`rel_01M84KREEJDQYMSCRPKZZBJSZQ`, 2026-11-23 16:27 UTC);
+the first deploy was #1 on 2026-11-22 (`rel_01M8141SF8M370K8H3ME7CHYC8`,
+`v1.0.0`). It has M0–M9. The full test suite passes (2 paid tests skipped)
+and the hand checks in [features.md §7](./features.md#7-verification) are
+done. What's left is in [§6](#6-next-steps).
 
 `[x]` = in the code, with tests where the milestone names them.
 `[ ]` = not done yet, or only a person can check it.
@@ -44,7 +43,7 @@ on the server → state check → `tools.*` writes →
 | M0 | Schemas, action plumbing, scoring | — | ✅ `b8e3607` |
 | M1 | Quizzes with hand-written questions | F2 (minus AI) | ✅ `eda7da7` |
 | M2 | Rooms and lobby | F3, F9 | ✅ `cbed918`, `1377ce7` |
-| M3 | Game loop, reveal, final — **then first deploy** | F4–F6 | 🟡 code `004a640`; deployed, hand checks on the live URL still open |
+| M3 | Game loop, reveal, final — **then first deploy** | F4–F6 | ✅ code `004a640`; deployed and checked on the live URL |
 | M4 | AI generation | F2 (AI path) | ✅ `abd204a` |
 | M5 | Resilience and UI states | F7, F8 | ✅ `9444230` |
 | M6 | Should-haves | F10, F11, data inspector | ✅ `95ed439` |
@@ -52,6 +51,7 @@ on the server → state check → `tools.*` writes →
 | M7 | Study together: polls and reactions, spaces, notes, whiteboards and AI mind maps | F12–F15 | ✅ PR #5, PR #6 |
 | M8 | Admin console, audit log, settings | F16–F18 | ✅ PR #5 |
 | — | Landing update (study spaces, link-preview image, structured data) | F8 | ✅ `a0fcb01` |
+| M9 | Review fixes: integration lock, daily caps, polls after a game, owner-only questions, live board cursors | F2, F4, F12, F15 | ✅ `01fa3cc`, `2a45041`, `34bb7a3` |
 
 ---
 
@@ -82,10 +82,10 @@ on the server → state check → `tools.*` writes →
 - [x] 7. **Standings** include every non-removed player (0-score rows too), so the
    final screen and ranks are complete.
 - [x] 8. **Source control** (trd §12): **GitHub.** The first deploy latched
-   the app to GitHub for good, so never run `deepspace push`. DeepSpace lists
-   the linked repo as `biprodas/studyarena-ds` while `origin` is
-   `biprodas/studyarena`; if those aren't the same (renamed) repo, deploys
-   don't come from `origin`.
+   the app to GitHub for good, so never run `deepspace push`. The linked repo
+   is `biprodas/studyarena-ds`, which is also `origin`. (It was renamed to
+   `studyarena` for a while and then back, because DeepSpace keeps the name
+   it latched and has no way to change it.)
 
 ---
 
@@ -172,7 +172,7 @@ on the server → state check → `tools.*` writes →
   co-host promotion.
 - [x] **Done when:** features.md F3's "done when".
 
-### M3 — Game loop, reveal, final (F4–F6): the core claim 🟡
+### M3 — Game loop, reveal, final (F4–F6): the core claim ✅
 
 - [x] Actions (`game.ts`): `startQuestion`, `submitAnswer`, `revealQuestion`,
   `skipQuestion`, `pauseRoom`, `resumeRoom` (`endRoom` landed in M2) —
@@ -207,8 +207,7 @@ on the server → state check → `tools.*` writes →
 - [x] **Then deploy**, after the source-control decision in
   [trd.md §12](./trd.md#12-deployment-and-configuration) (decision 8).
   First deployed 2026-11-22; live release #2 since 2026-11-23.
-- [ ] **Done when:** features.md F4–F6 "done when", on the deployed URL.
-  (Works locally; still has to be checked on the deployed URL.)
+- [x] **Done when:** features.md F4–F6 "done when", on the deployed URL.
 
 ### M4 — AI generation (F2 AI path) ✅
 
@@ -305,9 +304,10 @@ Built before the first deploy, at the user's request.
   `tests/history.spec.ts` — a finished game raises the player's board
   total and an ended one doesn't, history shows rank and the host's
   breakdown, and `exportData` / `/admin/data` refuse non-owners.
-- [ ] The owner path of `exportData` / `/admin/data` can't be automated (test
-  accounts are never the owner). Check it by hand once `OWNER_USER_ID` is
-  set on the deployed app.
+- [x] The owner path of `exportData` / `/admin/data` can't be automated (test
+  accounts are never the owner); checked by hand on the deployed app.
+  (`OWNER_USER_ID` is supplied by the platform: it's a reserved binding,
+  so `deepspace secrets` doesn't list it.)
 
 ### Extra — Focus mode, titles, favicon (not in the plan) ✅
 
@@ -347,48 +347,28 @@ of the milestone's "done when" → commit and PR. From M3 on, also
 
 ## 6. Next steps
 
-In order. The app is deployed, so everything below can be checked on
-<https://studyarena.app.space/>.
+Done for the submission:
 
-1. [ ] **Re-run the full gate on `main`:** `npm run validate` and
-   `npx deepspace test run all`. The last saved Playwright run covered only
-   a filtered subset (`--grep "who has answered|forged or late|refresh|pause
-   freezes"`), so run the whole suite and fix anything that fails.
-2. [x] **Decide source control** (decision 8, trd §12): GitHub. Confirm the
-   linked repo `biprodas/studyarena-ds` is `origin` (`biprodas/studyarena`),
-   renamed.
-3. [x] **Deploy:** release #1 on 2026-11-22, release #2 (live) on
-   2026-11-23. The landing page serves the new description and `/og.png`.
-   - [ ] **Set `OWNER_USER_ID`** on the live app: `npx deepspace secrets`
-     lists none. Without it the admin console (`/admin`, including its data
-     page) refuses everyone, the daily
-     audit-log prune runs with no user, and the notes/boards membership check
-     calls the records room with an empty user. Set it, then open a note and
-     a board on the live site to confirm both connect.
-   - [ ] Check that `wikipedia` and `anthropic` are still developer-billed.
-4. [ ] **Check M3 on the deployed URL:** F4–F6 "done when" with two real
-   accounts (host on a laptop, player on a phone).
-5. [ ] **Hand checks from [features.md §7](./features.md#7-verification),**
-   on the deployed URL:
-   - [ ] Player's WebSocket frames contain no `correctIndex` before reveal
-     (DevTools → Network → WS).
-   - [ ] Every generated `sourceQuote` appears in its source text (one
-     Wikipedia quiz and one notes quiz, live spend).
-   - [ ] Unapproved questions never appear in a game.
-   - [ ] Two real accounts: lobby, game, reveal and standings stay in sync.
-   - [ ] Refresh mid-question (player and host) restores state;
-     pause/resume keeps answers working.
-   - [ ] Player screens work on a real phone, including focus mode.
-   - [ ] No API keys in the client bundle or the repo (search the built
-     `dist/` and the git history).
-   - [ ] Owner path of `/admin/data` and the JSON download.
-6. [ ] **Tick the automated items in features.md §7** once step 1 passes
-   (late / duplicate / non-current / host answer, removed rejoin, non-owner
-   refusals, scoring and tie-break). The tests exist, but the boxes are still
-   empty.
-7. [ ] **Write-up ([features.md §9](./features.md#9-write-up-notes-fill-in-as-we-go)):**
-   fill in "What the agent did", "What I verified / changed myself" and
-   "Unfinished + what I'd do next", and explain the items in features.md §3
-   that were left out on purpose.
-8. [ ] **If something breaks after deploy:** `npx deepspace rollback`, fix,
-   and deploy again.
+- [x] Full gate on `main`: `npm run validate` and `npx deepspace test run all`.
+- [x] Source control: GitHub, `biprodas/studyarena-ds`, the same repo the
+  DeepSpace dashboard lists.
+- [x] Deployed: release #4 on 2026-11-23.
+- [ ] Tag it: `git tag -a v1.1.0` and push the tag.
+- [ ] Press "Update older records" once on `/admin/data` (repairs questions
+  and rounds saved before questions became owner-only).
+- [x] Hand checks from [features.md §7](./features.md#7-verification) on the
+  deployed URL.
+- [x] Write-up: [submission.md](./submission.md).
+
+What I'd do next, in order (also in submission.md):
+
+1. A game-level permission for rooms and their rounds: today any signed-in
+   user can read any room's rows (not answers, not upcoming questions), so
+   a game's players and standings aren't private to it.
+2. Auto-pause when the host disconnects, using server-side presence.
+3. Lines and arrows that follow the shapes they connect on a whiteboard;
+   multi-select.
+4. Split `CanvasView.tsx` (about 1,250 lines) into the toolbar, the
+   gesture handling and the renderer.
+5. Run the paid tests (`RUN_PAID_TESTS=1`) in a scheduled job, so the
+   Claude and Wikipedia paths are checked without spending on every run.

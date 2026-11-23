@@ -360,6 +360,22 @@ model LeaderboardEntry {
   correctAnswers Int
   roomIds        Json   // string[]: rooms already counted (idempotent)
 }
+
+/// Synced account preferences (F18). Server-written; each user reads their own.
+/// Theme and game reactions are per device (localStorage), not stored here.
+model UserPrefs {      // collection: user_prefs
+  recordId     String  @id
+  userId       String  @unique // User.id
+  inviteEmails Boolean @default(true) // email me game and space invites
+  updatedAt    DateTime
+}
+
+/// Key/value settings from the project scaffold; admins only. Unused.
+model Setting {        // collection: settings
+  recordId String @id
+  key      String
+  value    String
+}
 ```
 
 ## Relationships
@@ -373,6 +389,8 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │                   ├─< Poll ─< PollVote >── User
       │                   ├─< RoundFlag >── User (per Round)
       │                   └─< Standing   >── User
+      ├── 1:1 ── UserPrefs
+      ├─< AuditEntry (as actor)
       └─< Space ─┬─< TeamMember >── User
                  ├─< SpaceInvite >── User (optional)
                  ├─< Note (documents; text in Yjs)
@@ -383,6 +401,25 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
 References are plain id columns. Assume no foreign-key enforcement (the
 permissions and schema docs read so far don't describe any); server actions
 check that referenced records exist before writing.
+
+## Board shapes (canvas room, not a collection)
+
+Each board's shapes live in a `CanvasRoom` Durable Object named after the
+board's `recordId`, as DeepSpace canvas shapes: `id`, `type`, a box (`x`,
+`y`, `width`, `height`) and free-form `props`. Lines, arrows and connectors
+keep a signed box from their start (x, y) to their end (x + width,
+y + height). Geometry helpers: `src/lib/canvas-shapes.ts`.
+
+| `type` | `props` |
+|---|---|
+| `rect`, `ellipse` | `stroke`, `strokeWidth`, `fill` (`transparent` or a tint) |
+| `line`, `arrow` | `stroke`, `strokeWidth` |
+| `connector` | `stroke`, `strokeWidth` (a mind map's curved link) |
+| `path` (pen) | `points` (flat [x, y, …] relative to the box), `w0`/`h0` (the box it was drawn at), `stroke`, `strokeWidth` |
+| `text` | `text`, `fontSize`, `stroke` (text colour), `fill`; mind-map cards add `fontWeight`, `align`, `padding`, `radius`, `border` |
+| `note` (sticky) | `text`, `fontSize`, `stroke` (tint colour) |
+
+Note text likewise lives in each note's `YjsRoom`, not in `documents`.
 
 ## Deliberately not modelled
 

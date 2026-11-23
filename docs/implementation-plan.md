@@ -4,9 +4,12 @@ Companion to [features.md](./features.md) (what), [trd.md](./trd.md) (how)
 and [schema.md](./schema.md) (data). This doc says **in what order** the work
 is built and settles the gaps the TRD left open.
 
-**Status (2026-11-22):** landing and auth pages are done, and so is the code
-for M0–M6, plus focus mode, page titles and the favicon (`eab58c9`). The app
-**has not been deployed yet**, and the hand-checked parts of
+**Status (2026-11-23):** **deployed** at <https://studyarena.app.space/>.
+The live release is #2 (`rel_01M83PAKCVECTWHD04X22D8ZYB`, 2026-11-23 07:53
+UTC), built from `main` at `a0fcb01`; the first deploy was #1 on
+2026-11-22 (`rel_01M8141SF8M370K8H3ME7CHYC8`). The live release has the
+code for M0–M8 and the landing update. Still open: `OWNER_USER_ID` isn't set
+on the live app, and the hand-checked parts of
 [features.md §7](./features.md#7-verification) haven't been done. See
 [§6 Next steps](#6-next-steps).
 
@@ -41,11 +44,14 @@ on the server → state check → `tools.*` writes →
 | M0 | Schemas, action plumbing, scoring | — | ✅ `b8e3607` |
 | M1 | Quizzes with hand-written questions | F2 (minus AI) | ✅ `eda7da7` |
 | M2 | Rooms and lobby | F3, F9 | ✅ `cbed918`, `1377ce7` |
-| M3 | Game loop, reveal, final — **then first deploy** | F4–F6 | 🟡 code `004a640`; **not deployed** |
+| M3 | Game loop, reveal, final — **then first deploy** | F4–F6 | 🟡 code `004a640`; deployed, hand checks on the live URL still open |
 | M4 | AI generation | F2 (AI path) | ✅ `abd204a` |
 | M5 | Resilience and UI states | F7, F8 | ✅ `9444230` |
 | M6 | Should-haves | F10, F11, data inspector | ✅ `95ed439` |
 | — | Focus mode, page titles, favicon (unplanned polish) | F8 | ✅ `eab58c9` |
+| M7 | Study together: polls and reactions, spaces, notes, whiteboards and AI mind maps | F12–F15 | ✅ PR #5, PR #6 |
+| M8 | Admin console, audit log, settings | F16–F18 | ✅ PR #5 |
+| — | Landing update (study spaces, link-preview image, structured data) | F8 | ✅ `a0fcb01` |
 
 ---
 
@@ -75,10 +81,11 @@ on the server → state check → `tools.*` writes →
    resumes first. `endRoom` works from any non-terminal state.
 - [x] 7. **Standings** include every non-removed player (0-score rows too), so the
    final screen and ranks are complete.
-- [ ] 8. **Source control before the first deploy** (trd §12): still to
-   confirm. The checkout has a GitHub `origin` and no `space` remote, so the
-   first `npx deepspace deploy` will latch the app to **GitHub** for good.
-   If that's what you want, never run `deepspace push`.
+- [x] 8. **Source control** (trd §12): **GitHub.** The first deploy latched
+   the app to GitHub for good, so never run `deepspace push`. DeepSpace lists
+   the linked repo as `biprodas/studyarena-ds` while `origin` is
+   `biprodas/studyarena`; if those aren't the same (renamed) repo, deploys
+   don't come from `origin`.
 
 ---
 
@@ -197,8 +204,9 @@ on the server → state check → `tools.*` writes →
   a refresh and host + player render identical standings; pause blocks
   answers, resume restores them, skip scores nothing; with 3 accounts, two
   players' standings and tie order match.
-- [ ] **Then deploy**, after the source-control decision in
+- [x] **Then deploy**, after the source-control decision in
   [trd.md §12](./trd.md#12-deployment-and-configuration) (decision 8).
+  First deployed 2026-11-22; live release #2 since 2026-11-23.
 - [ ] **Done when:** features.md F4–F6 "done when", on the deployed URL.
   (Works locally; still has to be checked on the deployed URL.)
 
@@ -339,18 +347,25 @@ of the milestone's "done when" → commit and PR. From M3 on, also
 
 ## 6. Next steps
 
-In order. Nothing after step 2 can be checked until the app is deployed.
+In order. The app is deployed, so everything below can be checked on
+<https://studyarena.app.space/>.
 
 1. [ ] **Re-run the full gate on `main`:** `npm run validate` and
    `npx deepspace test run all`. The last saved Playwright run covered only
    a filtered subset (`--grep "who has answered|forged or late|refresh|pause
    freezes"`), so run the whole suite and fix anything that fails.
-2. [ ] **Decide source control** (decision 8, trd §12). Keep GitHub
-   (`origin` is already set, so deploy latches to it; never run
-   `deepspace push`), or switch to DeepSpace source. This can't be undone.
-3. [ ] **First deploy:** `npx deepspace deploy`. Set `OWNER_USER_ID` for the
-   data inspector, then check that `wikipedia` and `anthropic` are still
-   developer-billed and that `npx deepspace secrets` needs no entries.
+2. [x] **Decide source control** (decision 8, trd §12): GitHub. Confirm the
+   linked repo `biprodas/studyarena-ds` is `origin` (`biprodas/studyarena`),
+   renamed.
+3. [x] **Deploy:** release #1 on 2026-11-22, release #2 (live) on
+   2026-11-23. The landing page serves the new description and `/og.png`.
+   - [ ] **Set `OWNER_USER_ID`** on the live app: `npx deepspace secrets`
+     lists none. Without it the admin console (`/admin`, including its data
+     page) refuses everyone, the daily
+     audit-log prune runs with no user, and the notes/boards membership check
+     calls the records room with an empty user. Set it, then open a note and
+     a board on the live site to confirm both connect.
+   - [ ] Check that `wikipedia` and `anthropic` are still developer-billed.
 4. [ ] **Check M3 on the deployed URL:** F4–F6 "done when" with two real
    accounts (host on a laptop, player on a phone).
 5. [ ] **Hand checks from [features.md §7](./features.md#7-verification),**

@@ -89,6 +89,7 @@ export default function BoardPage() {
         drawOnce={drawOnce}
         onDrawn={onDrawn}
         exportName={board.data.title}
+        fitOnOpen={board.data.kind === 'mindmap'}
         header={(boardActions) => (
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card/95 py-1 pl-1 pr-1 shadow-sm backdrop-blur">
             <div className="min-w-0 flex-1">

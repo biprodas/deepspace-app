@@ -4,12 +4,13 @@
  * resizing and the stroke/fill styles the toolbar offers.
  *
  * Shapes are DeepSpace canvas shapes: `type`, a box (`x`, `y`, `width`,
- * `height`) and free-form `props`. Lines and arrows keep a *signed* box,
+ * `height`) and free-form `props`. Lines, arrows and connectors (the curved
+ * links in a mind map) keep a *signed* box,
  * from their start point (x, y) to their end (x + width, y + height); every
  * other shape's box is normal (positive width and height).
  */
 
-export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'arrow' | 'path' | 'text' | 'note'
+export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'arrow' | 'connector' | 'path' | 'text' | 'note'
 
 export interface Box {
   x: number
@@ -38,7 +39,13 @@ export const LINE_HEIGHT = 1.35
 /** Pen strokes keep at most this many points, so a long scribble stays a small record. */
 export const MAX_PEN_POINTS = 1500
 
-export const isSegment = (type: string) => type === 'line' || type === 'arrow'
+export const isSegment = (type: string) => type === 'line' || type === 'arrow' || type === 'connector'
+
+/** SVG path for a connector: an S-curve leaving and arriving horizontally. */
+export function connectorPath(shape: Box): string {
+  const midX = shape.x + shape.width / 2
+  return `M${shape.x} ${shape.y}C${midX} ${shape.y} ${midX} ${shape.y + shape.height} ${shape.x + shape.width} ${shape.y + shape.height}`
+}
 
 /** A colour from the palette at low opacity, for fills and sticky notes. */
 export function tint(color: string): string {
@@ -80,12 +87,13 @@ let measureContext: CanvasRenderingContext2D | null | undefined
  * the real glyphs, so saved text wraps where it did while being typed;
  * elsewhere (unit tests) it estimates from an average glyph width.
  */
-function textWidth(text: string, fontSize: number): number {
+export function textWidth(text: string, fontSize: number, fontWeight = 400): number {
   if (measureContext === undefined) {
     measureContext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d')
   }
-  if (!measureContext) return text.length * fontSize * CHAR_WIDTH
-  measureContext.font = `${fontSize}px ${BOARD_FONT}`
+  // Bold glyphs run about 6% wider than regular ones.
+  if (!measureContext) return text.length * fontSize * CHAR_WIDTH * (fontWeight >= 600 ? 1.06 : 1)
+  measureContext.font = `${fontWeight} ${fontSize}px ${BOARD_FONT}`
   return measureContext.measureText(text).width
 }
 
@@ -93,8 +101,8 @@ function textWidth(text: string, fontSize: number): number {
  * Word-wraps `text` to lines no wider than `maxWidth` at `fontSize`, keeping
  * the writer's own line breaks. A word longer than a line is split.
  */
-export function wrapText(text: string, maxWidth: number, fontSize: number): string[] {
-  const fits = (s: string) => textWidth(s, fontSize) <= maxWidth
+export function wrapText(text: string, maxWidth: number, fontSize: number, fontWeight = 400): string[] {
+  const fits = (s: string) => textWidth(s, fontSize, fontWeight) <= maxWidth
   const lines: string[] = []
   for (const paragraph of text.split('\n')) {
     let line = ''
@@ -121,11 +129,23 @@ export function wrapText(text: string, maxWidth: number, fontSize: number): stri
 export const fontSizeOf = (shape: ShapeLike) =>
   typeof shape.props.fontSize === 'number' ? shape.props.fontSize : LEGACY_TEXT_FONT_SIZE
 
+export const fontWeightOf = (shape: ShapeLike) =>
+  typeof shape.props.fontWeight === 'number' ? shape.props.fontWeight : 400
+
+/** Inner padding of a text box or note (mind-map nodes set their own). */
+export const paddingOf = (shape: ShapeLike) =>
+  typeof shape.props.padding === 'number' ? shape.props.padding : shape.type === 'note' ? NOTE_PADDING : TEXT_PADDING
+
 /** Height a text box or note needs to show all its text at its width. */
 export function textHeight(shape: ShapeLike): number {
   const fontSize = fontSizeOf(shape)
-  const padding = shape.type === 'note' ? NOTE_PADDING : TEXT_PADDING
-  const lines = wrapText(String(shape.props.text ?? ''), shape.width - padding * 2, fontSize).length
+  const padding = paddingOf(shape)
+  const lines = wrapText(
+    String(shape.props.text ?? ''),
+    shape.width - padding * 2,
+    fontSize,
+    fontWeightOf(shape),
+  ).length
   return Math.ceil(lines * fontSize * LINE_HEIGHT + padding * 2)
 }
 

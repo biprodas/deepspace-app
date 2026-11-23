@@ -25,7 +25,8 @@ import {
   handlesFor,
   isSegment,
   LINE_HEIGHT,
-  NOTE_PADDING,
+  paddingOf,
+  fontWeightOf,
   NOTE_SIZE,
   penShape,
   resizeBox,
@@ -55,6 +56,8 @@ interface CanvasViewProps {
   header?: ReactNode | ((board: BoardActions) => ReactNode)
   /** File name (without extension) for "Download as image". */
   exportName?: string
+  /** Zoom to show every shape once the board has loaded (a mind map opens whole). */
+  fitOnOpen?: boolean
 }
 
 type Point = { x: number; y: number }
@@ -166,7 +169,16 @@ function makeShape(
   }
 }
 
-export function CanvasView({ docId, className, center, drawOnce, onDrawn, header, exportName }: CanvasViewProps) {
+export function CanvasView({
+  docId,
+  className,
+  center,
+  drawOnce,
+  onDrawn,
+  header,
+  exportName,
+  fitOnOpen,
+}: CanvasViewProps) {
   const {
     shapes,
     viewports,
@@ -351,18 +363,33 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn, header
   }, [])
 
   /** Zoom and pan so every shape is in view (or back to 100% on an empty board). */
-  const fitToContent = useCallback(() => {
-    const rect = svgRef.current?.getBoundingClientRect()
-    const bounds = unionBounds(current)
-    if (!rect) return
-    if (!bounds) return setView({ x: 0, y: 0, zoom: 1 })
-    const zoom = clampZoom(Math.min((rect.width - 120) / bounds.width, (rect.height - 200) / bounds.height, 2))
-    setView({
-      x: rect.width / 2 - (bounds.x + bounds.width / 2) * zoom,
-      y: rect.height / 2 - (bounds.y + bounds.height / 2) * zoom,
-      zoom,
-    })
-  }, [current])
+  const fitToContent = useCallback(
+    (maxZoom = 2) => {
+      const rect = svgRef.current?.getBoundingClientRect()
+      const bounds = unionBounds(current)
+      if (!rect) return
+      if (!bounds) return setView({ x: 0, y: 0, zoom: 1 })
+      const zoom = clampZoom(Math.min((rect.width - 120) / bounds.width, (rect.height - 200) / bounds.height, maxZoom))
+      setView({
+        x: rect.width / 2 - (bounds.x + bounds.width / 2) * zoom,
+        y: rect.height / 2 - (bounds.y + bounds.height / 2) * zoom,
+        zoom,
+      })
+    },
+    [current],
+  )
+
+  // Fit once on open, after the shapes stop arriving (a freshly drawn map lands shape by
+  // shape). Never zoomed in past 100%, so a small map isn't blown up.
+  const fitted = useRef(false)
+  useEffect(() => {
+    if (!fitOnOpen || fitted.current || !connected || current.length === 0) return
+    const timer = setTimeout(() => {
+      fitted.current = true
+      fitToContent(1)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [fitOnOpen, connected, current, fitToContent])
 
   // Wheel: scroll pans; Ctrl/⌘ + wheel (and a trackpad pinch, which sends ctrlKey) zooms at the pointer.
   // A native listener, because React's wheel listener is passive and can't stop the page scrolling.
@@ -879,7 +906,7 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn, header
             : 'crosshair'
 
   const editingFont = editing ? fontSizeOf(editing) : TEXT_FONT_SIZE
-  const editingPad = editing?.type === 'note' ? NOTE_PADDING : TEXT_PADDING
+  const editingPad = editing ? paddingOf(editing) : TEXT_PADDING
   const toolHint = TOOLS.find((t) => t.id === tool)
 
   const zoomButton =
@@ -955,6 +982,8 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn, header
             fontSize: editingFont * zoom,
             lineHeight: LINE_HEIGHT,
             fontFamily: BOARD_FONT,
+            fontWeight: editing ? fontWeightOf(editing) : undefined,
+            textAlign: editing?.props.align === 'center' ? 'center' : undefined,
             color: editing.type === 'note' ? '#1f2937' : ((editing.props.stroke as string) ?? undefined),
           }}
         />
@@ -1055,7 +1084,7 @@ export function CanvasView({ docId, className, center, drawOnce, onDrawn, header
         </button>
         <button
           type="button"
-          onClick={fitToContent}
+          onClick={() => fitToContent()}
           title="Fit everything in view (Shift+1)"
           aria-label="Fit everything in view"
           data-testid="canvas-fit"

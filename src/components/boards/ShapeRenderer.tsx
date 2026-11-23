@@ -1,6 +1,8 @@
 /**
  * ShapeRenderer — draws one board shape as SVG: rect, ellipse, line, arrow,
- * pen stroke (`path`), text box and sticky note. Plain SVG only (no
+ * connector (a mind map's curved link), pen stroke (`path`), text box and
+ * sticky note. Text boxes take optional `fontWeight`, `align`, `padding`,
+ * `radius` and `border` props, which mind-map nodes use. Plain SVG only (no
  * foreignObject), so the board can be exported as an image.
  *
  * Every shape's group carries `data-shape-id`, which the canvas uses to
@@ -11,6 +13,9 @@ import { memo } from 'react'
 import type { CanvasShapeClient } from 'deepspace'
 import {
   arrowHeadPath,
+  connectorPath,
+  fontWeightOf,
+  paddingOf,
   BOARD_FONT,
   DEFAULT_STROKE_WIDTH,
   fontSizeOf,
@@ -32,16 +37,30 @@ const HIT_WIDTH = 14
 function Lines({ shape, padding, center }: { shape: DrawnShape; padding: number; center: boolean }) {
   const fontSize = fontSizeOf(shape)
   const stroke = (shape.props.stroke as string) ?? '#6366f1'
-  const lines = wrapText(String(shape.props.text ?? ''), shape.width - padding * 2, fontSize)
+  const fontWeight = fontWeightOf(shape)
+  const lines = wrapText(String(shape.props.text ?? ''), shape.width - padding * 2, fontSize, fontWeight)
   const lineHeight = fontSize * LINE_HEIGHT
+  const centred = shape.props.align === 'center'
   // Text boxes centre their lines vertically (as mind-map nodes always have); notes start at the top.
   const top = center
     ? shape.y + shape.height / 2 - ((lines.length - 1) * lineHeight) / 2
     : shape.y + padding + lineHeight / 2
   return (
-    <text fill={stroke} fontSize={fontSize} fontFamily={BOARD_FONT} pointerEvents="none">
+    <text
+      fill={stroke}
+      fontSize={fontSize}
+      fontWeight={fontWeight === 400 ? undefined : fontWeight}
+      fontFamily={BOARD_FONT}
+      textAnchor={centred ? 'middle' : undefined}
+      pointerEvents="none"
+    >
       {lines.map((line, i) => (
-        <tspan key={i} x={shape.x + padding} y={top + i * lineHeight} dominantBaseline="central">
+        <tspan
+          key={i}
+          x={centred ? shape.x + shape.width / 2 : shape.x + padding}
+          y={top + i * lineHeight}
+          dominantBaseline="central"
+        >
           {line || ' '}
         </tspan>
       ))}
@@ -135,14 +154,35 @@ export const ShapeRenderer = memo(function ShapeRenderer({
       )
       break
     }
-    case 'text':
+    case 'text': {
+      const border = shape.props.border as string | undefined
       body = (
         <>
-          <rect x={shape.x} y={shape.y} width={shape.width} height={shape.height} fill={fill} rx={4} />
-          {!editing && <Lines shape={shape} padding={TEXT_PADDING} center />}
+          <rect
+            x={shape.x}
+            y={shape.y}
+            width={shape.width}
+            height={shape.height}
+            fill={fill}
+            rx={(shape.props.radius as number) ?? 4}
+            stroke={border}
+            strokeWidth={border ? 1.5 : undefined}
+          />
+          {!editing && <Lines shape={shape} padding={paddingOf(shape)} center />}
         </>
       )
       break
+    }
+    case 'connector': {
+      const d = connectorPath(shape)
+      body = (
+        <>
+          <path d={d} stroke="transparent" strokeWidth={HIT_WIDTH} fill="none" />
+          <path d={d} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" fill="none" />
+        </>
+      )
+      break
+    }
     case 'note':
       body = (
         <>

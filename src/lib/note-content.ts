@@ -27,8 +27,13 @@ export function inline(text: string): JsonNode[] {
   return nodes
 }
 
-const paragraph = (content: JsonNode[]): JsonNode => (content.length ? { type: 'paragraph', content } : { type: 'paragraph' })
-const heading = (level: number, text: string): JsonNode => ({ type: 'heading', attrs: { level }, content: [{ type: 'text', text }] })
+const paragraph = (content: JsonNode[]): JsonNode =>
+  content.length ? { type: 'paragraph', content } : { type: 'paragraph' }
+const heading = (level: number, text: string): JsonNode => ({
+  type: 'heading',
+  attrs: { level },
+  content: [{ type: 'text', text }],
+})
 const bullets = (items: JsonNode[][]): JsonNode => ({
   type: 'bulletList',
   content: items.map((c) => ({ type: 'listItem', content: [paragraph(c)] })),
@@ -51,7 +56,12 @@ export function draftToContent(draft: NoteDraft, sourceTitle: string): JsonNode[
   if (draft.keyTerms.length) {
     out.push(
       heading(3, 'Key terms'),
-      bullets(draft.keyTerms.map((t) => [{ type: 'text', text: t.term, marks: [{ type: 'bold' }] }, { type: 'text', text: ` — ${t.meaning}` }])),
+      bullets(
+        draft.keyTerms.map((t) => [
+          { type: 'text', text: t.term, marks: [{ type: 'bold' }] },
+          { type: 'text', text: ` — ${t.meaning}` },
+        ]),
+      ),
     )
   }
   out.push(

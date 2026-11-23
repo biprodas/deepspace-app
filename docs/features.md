@@ -195,8 +195,10 @@ Build these end to end before anything in section 2.
   undoable. *Review this note* opens a side panel of suggestions (possible
   mistakes, missing points, unclear passages, structure), optionally
   checking facts against a Wikipedia article. The review never changes the
-  note: a suggestion can show its passage, add its missing text, or be
-  dismissed. Both are members-only, run on the server, are logged as paid
+  note by itself: a mistake or unclear passage can come with corrected
+  wording, shown before and after, that **Replace** swaps in (one undo
+  step); a missing point can be added; any suggestion can show its passage
+  or be dismissed. Both are members-only, run on the server, are logged as paid
   calls, and share a limit of 10 a day per person.
   **Done when:** two members see each other's typing, a member who leaves
   gets no note and no socket, and a pinned reveal shows in the session note.

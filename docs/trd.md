@@ -492,8 +492,10 @@ collaborative cursors, a "/" block menu, a block handle and a selection
 format bar. The "AI" menu drafts notes from a Wikipedia topic (added
 through the editor, so they sync and undo like typing) or reviews the note:
 Claude's suggestions are parsed and checked (a quoted passage must really be
-in the note), shown in a side panel, and applied only when a member chooses
-"Add to note"; the review never edits the note. The daily limit counts the
+in the note; corrected wording is kept only for a mistake or unclear
+passage whose quote was found), shown in a side panel, and applied only when
+a member chooses "Replace" (swaps the quoted range) or "Add to note"; the
+review never edits the note by itself. The daily limit counts the
 member's `ai.note_*` audit entries. "Make a quiz" sends the note's text to the normal quiz
 pipeline (§8); "Add to notes" on a reveal pins the question into the game's
 session note (`sessionNote`).

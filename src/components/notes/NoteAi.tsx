@@ -5,8 +5,9 @@
  *   article, added to the note (everyone sees them live; undo works), with a
  *   link to the source at the end;
  * - "Review this note": a side panel of suggestions (possible mistakes,
- *   missing points, unclear passages, structure). It never changes the note:
- *   a suggestion can show its passage, add its missing text, or be dismissed.
+ *   missing points, unclear passages, structure). It never changes the note
+ *   by itself: a suggestion can show its passage, replace it with Claude's
+ *   corrected wording, add its missing text, or be dismissed.
  * Both run on the server (src/actions/note-ai.ts) and share a daily limit.
  */
 
@@ -18,6 +19,7 @@ import {
   CirclePlus,
   ListTree,
   Plus,
+  Replace,
   RotateCcw,
   ScanSearch,
   TriangleAlert,
@@ -40,7 +42,7 @@ import {
 } from '@/components/ui'
 import { DAILY_NOTE_AI_LIMIT, MAX_NOTES_CHARS } from '@/lib/game-rules'
 import type { NoteDraft, NoteReview, Suggestion, SuggestionKind } from '@/lib/note-ai'
-import { draftToContent, findQuote, insertToContent, wikipediaUrl, type TextBlock } from '@/lib/note-content'
+import { draftToContent, findQuote, inline, insertToContent, wikipediaUrl, type TextBlock } from '@/lib/note-content'
 import { useAction } from '@/lib/use-action'
 
 const KINDS: Record<SuggestionKind, { label: string; icon: LucideIcon; tone: string }> = {
@@ -64,13 +66,26 @@ function textBlocks(editor: Editor): TextBlock[] {
 /** Adds content at the end of the note (or fills it, when it's empty) and shows it. */
 function appendToNote(editor: Editor, content: ReturnType<typeof insertToContent>) {
   if (editor.isEmpty) {
-    editor.chain().focus().insertContentAt({ from: 0, to: editor.state.doc.content.size }, content).scrollIntoView().run()
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: 0, to: editor.state.doc.content.size }, content)
+      .scrollIntoView()
+      .run()
   } else {
     editor.chain().focus('end').insertContentAt(editor.state.doc.content.size, content).scrollIntoView().run()
   }
 }
 
-export function NoteAiMenu({ editor, noteId, noteTitle }: { editor: Editor | null; noteId: string; noteTitle: string }) {
+export function NoteAiMenu({
+  editor,
+  noteId,
+  noteTitle,
+}: {
+  editor: Editor | null
+  noteId: string
+  noteTitle: string
+}) {
   const [drafting, setDrafting] = useState(false)
   const [reviewing, setReviewing] = useState(false)
   const canEdit = !!editor?.isEditable
@@ -161,9 +176,7 @@ function DraftModal({
             Reading the article and writing notes, about 20 seconds…
           </p>
         ) : (
-          <p className="pt-1 text-xs text-muted-foreground">
-            Up to {DAILY_NOTE_AI_LIMIT} AI drafts and reviews a day.
-          </p>
+          <p className="pt-1 text-xs text-muted-foreground">Up to {DAILY_NOTE_AI_LIMIT} AI drafts and reviews a day.</p>
         )}
       </Modal.Body>
       <Modal.Footer>
@@ -199,8 +212,8 @@ function ReviewPanel({
   const [checkFacts, setCheckFacts] = useState(false)
   const [topic, setTopic] = useState(noteTitle)
   const [result, setResult] = useState<(NoteReview & { sourceTitle?: string }) | null>(null)
-  /** Per suggestion (by index): dismissed, or its text added to the note. */
-  const [done, setDone] = useState<Record<number, 'dismissed' | 'added'>>({})
+  /** Per suggestion (by index): dismissed, its text added, or its passage replaced. */
+  const [done, setDone] = useState<Record<number, 'dismissed' | 'added' | 'replaced'>>({})
 
   // Tells the note page to make room for the panel beside the note (wide screens).
   useEffect(() => {
@@ -228,6 +241,21 @@ function ReviewPanel({
     const hit = s.quote ? findQuote(textBlocks(editor), s.quote) : null
     if (!hit) return error('That passage has changed since the review')
     editor.chain().focus().setTextSelection({ from: hit.from, to: hit.to }).scrollIntoView().run()
+  }
+
+  /** Swaps the quoted passage for Claude's corrected wording (one undo step). */
+  function replaceInNote(i: number, s: Suggestion) {
+    if (!s.quote || !s.replacement || !editor.isEditable) return
+    const hit = findQuote(textBlocks(editor), s.quote)
+    if (!hit) return error('That passage has changed since the review')
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: hit.from, to: hit.to }, inline(s.replacement))
+      .setTextSelection({ from: hit.from, to: hit.from + s.replacement.replace(/\*\*/g, '').length })
+      .scrollIntoView()
+      .run()
+    setDone((d) => ({ ...d, [i]: 'replaced' }))
   }
 
   function addToNote(i: number, s: Suggestion) {
@@ -298,7 +326,9 @@ function ReviewPanel({
             )}
             {open.length === 0 ? (
               <p className="rounded-xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-                {result.suggestions.length === 0 ? 'No suggestions: this note looks good.' : 'All suggestions dismissed.'}
+                {result.suggestions.length === 0
+                  ? 'No suggestions: this note looks good.'
+                  : 'All suggestions dismissed.'}
               </p>
             ) : (
               <ul className="space-y-3" data-testid="note-review-suggestions">
@@ -317,16 +347,38 @@ function ReviewPanel({
                       </span>
                       <p className="mt-2 text-sm font-semibold">{s.title}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{s.detail}</p>
-                      {s.quote && (
-                        <blockquote className="mt-2 border-l-2 border-border pl-2 text-xs italic text-muted-foreground">
-                          “{s.quote}”
-                        </blockquote>
+                      {s.quote && s.replacement ? (
+                        // Before and after, so the change is clear before anyone applies it.
+                        <div className="mt-2 space-y-1.5 text-xs" data-testid="note-review-change">
+                          <p className="rounded-lg bg-destructive/[0.07] px-2.5 py-1.5 text-muted-foreground line-through decoration-destructive/50">
+                            {s.quote}
+                          </p>
+                          <p className="rounded-lg bg-correct/10 px-2.5 py-1.5">{s.replacement.replace(/\*\*/g, '')}</p>
+                        </div>
+                      ) : (
+                        s.quote && (
+                          <blockquote className="mt-2 border-l-2 border-border pl-2 text-xs italic text-muted-foreground">
+                            “{s.quote}”
+                          </blockquote>
+                        )
                       )}
                       {s.insert && (
-                        <p className="mt-2 whitespace-pre-line rounded-lg bg-muted/60 px-2.5 py-2 text-xs">{s.insert}</p>
+                        <p className="mt-2 whitespace-pre-line rounded-lg bg-muted/60 px-2.5 py-2 text-xs">
+                          {s.insert}
+                        </p>
                       )}
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {s.quote && (
+                        {s.replacement &&
+                          (done[i] === 'replaced' ? (
+                            <span className="inline-flex items-center px-2 text-xs font-semibold text-correct-text">
+                              Replaced · Ctrl+Z undoes it
+                            </span>
+                          ) : (
+                            <Button size="sm" onClick={() => replaceInNote(i, s)} disabled={!editor.isEditable}>
+                              <Replace /> Replace
+                            </Button>
+                          ))}
+                        {s.quote && done[i] !== 'replaced' && (
                           <Button size="sm" variant="outline" onClick={() => showPassage(s)}>
                             Show in note
                           </Button>

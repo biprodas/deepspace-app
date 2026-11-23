@@ -110,7 +110,7 @@ self-study without a host.
 - S2. As a member, I write notes together with the group live, and turn a
   note into a quiz in one click.
 - S2a. As a member, I have AI draft notes from a topic, or review my note
-  and suggest improvements without changing it.
+  and suggest improvements, then choose which fixes to apply.
 - S3. As a member, I sketch on a whiteboard with the group (pen, shapes,
   arrows, sticky notes), and erase or clear it when we're done.
 - S4. As a member, I generate a mind map from a Wikipedia topic and edit it

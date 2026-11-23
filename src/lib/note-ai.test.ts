@@ -43,7 +43,12 @@ describe('parseNoteReview', () => {
       JSON.stringify({
         summary: 'Good start.',
         suggestions: [
-          { kind: 'mistake', title: 'Fix the organelle', detail: 'It is the chloroplast.', quote: 'happens in the  MITOCHONDRIA' },
+          {
+            kind: 'mistake',
+            title: 'Fix the organelle',
+            detail: 'It is the chloroplast.',
+            quote: 'happens in the  MITOCHONDRIA',
+          },
           { kind: 'unclear', title: 'Say which sugar', detail: 'Be specific.', quote: 'a sentence that is not there' },
         ],
       }),
@@ -54,16 +59,51 @@ describe('parseNoteReview', () => {
   })
 
   it('keeps "insert" only for missing points, drops unknown kinds, and caps the count', () => {
-    const many = Array.from({ length: 12 }, () => ({ kind: 'missing', title: 'Add inputs', detail: 'Water and CO2.', insert: '- Water\n- CO2' }))
+    const many = Array.from({ length: 12 }, () => ({
+      kind: 'missing',
+      title: 'Add inputs',
+      detail: 'Water and CO2.',
+      insert: '- Water\n- CO2',
+    }))
     const review = parseNoteReview(
       JSON.stringify({
-        suggestions: [{ kind: 'unclear', title: 'T', detail: 'D', insert: 'nope' }, { kind: 'praise', title: 'T', detail: 'D' }, ...many],
+        suggestions: [
+          { kind: 'unclear', title: 'T', detail: 'D', insert: 'nope' },
+          { kind: 'praise', title: 'T', detail: 'D' },
+          ...many,
+        ],
       }),
       note,
     )
     expect(review.suggestions).toHaveLength(MAX_SUGGESTIONS)
     expect(review.suggestions[0].insert).toBeUndefined()
     expect(review.suggestions[1].insert).toBe('- Water\n- CO2')
+  })
+
+  it('keeps a replacement only for a found quote of a mistake or unclear passage that changes it', () => {
+    const review = parseNoteReview(
+      JSON.stringify({
+        suggestions: [
+          {
+            kind: 'mistake',
+            title: 'Fix',
+            detail: 'D',
+            quote: 'in the mitochondria',
+            replacement: 'in the chloroplasts',
+          },
+          { kind: 'mistake', title: 'Fix', detail: 'D', quote: 'not in the note', replacement: 'x' },
+          { kind: 'unclear', title: 'Same', detail: 'D', quote: 'It makes glucose', replacement: 'it makes  glucose' },
+          { kind: 'structure', title: 'Reorder', detail: 'D', quote: 'It makes glucose', replacement: 'y' },
+        ],
+      }),
+      note,
+    )
+    expect(review.suggestions.map((s) => s.replacement)).toEqual([
+      'in the chloroplasts',
+      undefined,
+      undefined,
+      undefined,
+    ])
   })
 
   it('judges accuracy against a source only when one is given', () => {

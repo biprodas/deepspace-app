@@ -97,7 +97,9 @@ const draftNote = defineAction(z.object({ noteId: recordId, topic }), async ({ u
 const reviewNote = defineAction(
   z.object({
     noteId: recordId,
-    text: z.string().max(MAX_NOTES_CHARS, `Notes over ${MAX_NOTES_CHARS.toLocaleString()} characters are too long to review`),
+    text: z
+      .string()
+      .max(MAX_NOTES_CHARS, `Notes over ${MAX_NOTES_CHARS.toLocaleString()} characters are too long to review`),
     /** A Wikipedia topic to check facts against; without it Claude judges by general knowledge. */
     topic: topic.optional(),
   }),

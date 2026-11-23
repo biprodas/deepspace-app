@@ -210,12 +210,26 @@ test('AI drafts notes from a topic into the note, and reviews it with suggestion
   await expect(editorOf(page).locator('h2')).toHaveCount(1, { timeout: 90_000 })
   expect(await editorOf(page).locator('h3').count()).toBeGreaterThanOrEqual(2)
   await expect(editorOf(page).locator('a[href*="wikipedia.org/wiki/"]')).toHaveCount(1)
+  // A wrong sentence for the review to catch.
+  await editorOf(page).click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Photosynthesis mostly happens in the mitochondria of animal cells.')
   const before = await editorOf(page).innerText()
 
-  // Review: suggestions show in the panel, and the note is unchanged.
+  // Review (facts checked against the article): suggestions show, and the note is unchanged.
   await page.getByTestId('note-ai-menu').click()
   await page.getByTestId('note-ai-review').click()
+  const panel = page.getByTestId('note-review')
+  await panel.getByTestId('note-review-check-facts').click()
   await page.getByTestId('note-review-run').click()
-  await expect(page.getByTestId('note-review').getByRole('button', { name: 'Review again' })).toBeVisible({ timeout: 90_000 })
+  await expect(panel.getByRole('button', { name: 'Review again' })).toBeVisible({ timeout: 90_000 })
   expect(await editorOf(page).innerText()).toBe(before)
+
+  // Replace swaps the wrong passage for the corrected wording, only when asked.
+  const card = panel.locator('li', { hasText: 'mitochondria' }).filter({ has: page.getByRole('button', { name: 'Replace' }) })
+  await expect(card.first()).toBeVisible()
+  await card.first().getByRole('button', { name: 'Replace' }).click()
+  await expect(panel.getByText('Replaced · Ctrl+Z undoes it')).toBeVisible()
+  await expect(editorOf(page)).not.toContainText('mitochondria of animal cells')
 })

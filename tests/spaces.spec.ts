@@ -113,36 +113,57 @@ test('notes and boards open in focus mode and show who is working where', async 
   await expect(memberUser.page.getByTestId('space-roster')).toContainText('In Sketch', { timeout: 15_000 })
 })
 
-test('leaving a note asks first; deleting it does not ask twice', async ({ users }) => {
+test('leaving a note saves a half-typed title; it asks only offline; deleting does not ask', async ({ users }) => {
   const [ownerUser] = await users(1)
   const owner = await actionsAs(ownerUser.page)
   const space = await createTestSpace(owner, 'Leaving')
   const { data: note } = await owner<{ noteId: string }>('createNote', { spaceId: space.spaceId, title: 'Draft' })
   const page = ownerUser.page
   const noteUrl = new RegExp(`/notes/${note!.noteId}$`)
-  await page.goto(`/spaces/${space.spaceId}`)
-  await page.getByTestId('tab-notes').click()
-  await page.getByRole('link', { name: /Draft/ }).click()
-  await expect(page.getByTestId('space-focus-bar')).toBeVisible({ timeout: 15_000 })
+  // Opened from the space's list, as people do, so Back stays inside the app.
+  const openNote = async () => {
+    await page.goto(`/spaces/${space.spaceId}?tab=notes`)
+    await page.getByRole('link', { name: /Draft/ }).click({ timeout: 15_000 })
+    await expect(page.getByTestId('space-focus-bar')).toBeVisible({ timeout: 15_000 })
+  }
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' })
 
-  // Exit asks; Stay keeps the note open.
+  // Nothing unsaved: Exit goes straight back to the space's notes.
+  await openNote()
   await page.getByTestId('space-exit').click()
-  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toBeVisible()
+  await expect(page).toHaveURL(/\?tab=notes$/)
+  await expect(ask).toHaveCount(0)
+
+  // A title typed but not saved yet: the browser's Back leaves without asking and saves it.
+  await openNote()
+  await page.getByTestId('note-title').fill('Draft two')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/spaces\/[^/]+(\?tab=notes)?$/)
+  await expect(ask).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Draft two/ })).toBeVisible({ timeout: 15_000 })
+
+  // Offline, the title can't be saved, so Back asks; Stay keeps the note open.
+  await openNote()
+  await page.context().setOffline(true)
+  await page.getByTestId('note-title').fill('Draft three')
+  await page.goBack()
+  await expect(ask).toBeVisible()
   await page.getByRole('button', { name: 'Stay' }).click()
   await expect(page).toHaveURL(noteUrl)
 
-  // The browser's Back asks too; Leave goes back to the space's notes.
-  await page.goBack()
-  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toBeVisible()
-  await page.getByRole('button', { name: 'Leave' }).click()
-  await expect(page).toHaveURL(/\/spaces\/[^/]+(\?tab=notes)?$/)
-  await expect(page.getByTestId('space-focus-bar')).toHaveCount(0)
+  // Back online and saved (Enter), it no longer asks.
+  await page.context().setOffline(false)
+  await page.getByTestId('note-title').press('Enter')
+  await expect(page.getByTestId('note-title')).toHaveValue('Draft three', { timeout: 10_000 })
+  await page.getByTestId('space-exit').click()
+  await expect(page).toHaveURL(/\?tab=notes$/)
+  await expect(ask).toHaveCount(0)
 
-  // Deleting goes straight back without a second "Leave?".
-  await page.goto(`/spaces/${space.spaceId}/notes/${note!.noteId}`)
+  // Deleting goes straight back without asking.
+  await openNote()
   await page.getByRole('button', { name: 'Note options' }).click({ timeout: 15_000 })
   await page.getByRole('menuitem', { name: 'Delete note' }).click()
   await page.getByRole('button', { name: 'Delete note' }).click()
   await expect(page).toHaveURL(/\?tab=notes$/, { timeout: 10_000 })
-  await expect(page.getByRole('dialog', { name: 'Leave this note?' })).toHaveCount(0)
+  await expect(ask).toHaveCount(0)
 })

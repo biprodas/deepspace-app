@@ -11,7 +11,7 @@
  * so each move or resize is one step of undo (not one per mouse movement).
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react'
 import { useCanvas, useUserLookup, type CanvasShapeClient } from 'deepspace'
 import { Download, Maximize, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { ConfirmModal } from '@/components/ui'
@@ -58,6 +58,8 @@ interface CanvasViewProps {
   exportName?: string
   /** Zoom to show every shape once the board has loaded (a mind map opens whole). */
   fitOnOpen?: boolean
+  /** Told whether text written on the board can't be saved (the connection is down). */
+  onUnsavedChange?: (unsaved: boolean) => void
 }
 
 type Point = { x: number; y: number }
@@ -178,6 +180,7 @@ export function CanvasView({
   header,
   exportName,
   fitOnOpen,
+  onUnsavedChange,
 }: CanvasViewProps) {
   const {
     shapes,
@@ -433,6 +436,13 @@ export function CanvasView({
     [current, canWrite],
   )
 
+  // Text in the editor is saved when it closes, including when the page is left (below).
+  // Only text that can't be saved, with the connection down, counts as unsaved.
+  const textUnsaved = !!editing && editText !== String(editing.props.text ?? '') && !connected
+  useEffect(() => {
+    onUnsavedChange?.(textUnsaved)
+  }, [textUnsaved, onUnsavedChange])
+
   const finishEditing = useCallback(
     (save: boolean) => {
       const shape = current.find((s) => s.id === editingId)
@@ -451,6 +461,16 @@ export function CanvasView({
     },
     [current, editingId, editText, deleteShape, updateShape, resizeShape],
   )
+
+  // Leaving the page while writing (e.g. the browser's Back, which doesn't blur the editor)
+  // saves the text. A layout-effect cleanup runs before the canvas socket closes.
+  const saveTextOnLeave = useRef(() => {})
+  useEffect(() => {
+    saveTextOnLeave.current = () => {
+      if (editingId) finishEditing(true)
+    }
+  })
+  useLayoutEffect(() => () => saveTextOnLeave.current(), [])
 
   // ─── Pointer gestures ──────────────────────────────────
 

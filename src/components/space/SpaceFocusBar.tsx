@@ -3,9 +3,11 @@
  * pages (focus mode, like a live game): back to the space, where you are,
  * who's here and online, a way to invite more, the theme, and Exit.
  *
- * Leaving asks first, as in a game: Exit, the back arrow, the breadcrumb
- * links and the browser's Back all open "Leave this note?". There's no
- * prompt on reload or closing the tab, since everything saves as you type.
+ * Notes and boards save as you type, and a title or board text still being
+ * typed is saved on the way out, so leaving normally doesn't ask. It asks
+ * only while the page reports `unsaved` work that can't be saved (you're
+ * offline): then Exit, the back arrow, the breadcrumb links, the browser's
+ * Back, and closing or reloading the tab all ask first.
  */
 
 import { Link } from 'react-router-dom'
@@ -23,17 +25,21 @@ const SECTION = {
   boards: { label: 'Boards', item: 'board' },
 } as const
 
-export function SpaceFocusBar({ state, section }: { state: SpaceState; section: keyof typeof SECTION }) {
-  const { space, locations, here, userId } = state
+export function SpaceFocusBar({
+  state,
+  section,
+  unsaved = false,
+}: {
+  state: SpaceState
+  section: keyof typeof SECTION
+  /** Something typed that can't be saved right now (offline); leaving would lose it. */
+  unsaved?: boolean
+}) {
+  const { space } = state
   const spaceId = space?.recordId
   const back = spaceId ? `/spaces/${spaceId}?tab=${section}` : '/spaces'
   const { label, item } = SECTION[section]
-  const guard = useLeaveGuard(true, { beforeUnload: false })
-
-  // Who else is in this note or board, for the confirmation's wording.
-  const othersHere = here
-    ? [...locations].filter(([id, l]) => id !== userId && l.kind === here.kind && l.id === here.id).length
-    : 0
+  const guard = useLeaveGuard(unsaved)
 
   return (
     <header
@@ -83,13 +89,9 @@ export function SpaceFocusBar({ state, section }: { state: SpaceState; section: 
         onClose={guard.stay}
         onConfirm={guard.leave}
         variant="default"
-        title={`Leave this ${item}?`}
-        description={
-          othersHere > 0
-            ? `Everything is saved. ${othersHere === 1 ? '1 other member is' : `${othersHere} other members are`} still working here and can keep going without you.`
-            : `Everything is saved, so you can pick up where you left off from ${label}.`
-        }
-        confirmText="Leave"
+        title="Leave without saving?"
+        description={`You’re offline, so your last change to this ${item} isn’t saved yet. If you leave now, it’s lost.`}
+        confirmText="Leave without saving"
         cancelText="Stay"
       />
     </header>

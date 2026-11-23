@@ -7,7 +7,7 @@
  * online and who is in this note.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from 'deepspace'
 import type { Editor } from '@tiptap/react'
@@ -28,6 +28,7 @@ import { useFocusMode } from '@/lib/focus-mode'
 import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { NOTE_TITLE_MAX } from '@/lib/game-rules'
 import { usePageTitle } from '@/lib/page-title'
+import { useOnline } from '@/lib/use-online'
 import { useAction } from '@/lib/use-action'
 import { useSpace } from '@/lib/use-space'
 import type { Note } from '@/schemas/note-schemas'
@@ -47,6 +48,19 @@ export default function NotePage() {
   const { run, pending } = useAction()
   const [makingQuiz, setMakingQuiz] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  /** A new title typed but not saved yet (it saves on blur, Enter, or leaving the page). */
+  const [titleDirty, setTitleDirty] = useState(false)
+  const titleDraft = useRef<string | null>(null)
+  const online = useOnline()
+  // Leaving without blurring the title (e.g. the browser's Back) still saves it.
+  const saveTitleOnLeave = useRef(() => {})
+  useEffect(() => {
+    saveTitleOnLeave.current = () => {
+      const title = titleDraft.current?.trim()
+      if (note && title && title !== note.data.title) void run('renameNote', { noteId, title })
+    }
+  })
+  useLayoutEffect(() => () => saveTitleOnLeave.current(), [])
   const [editor, setEditor] = useState<Editor | null>(null)
   usePageTitle(note?.data.title ?? 'Note')
 
@@ -66,7 +80,7 @@ export default function NotePage() {
 
   return (
     <>
-      <SpaceFocusBar state={spaceState} section="notes" />
+      <SpaceFocusBar state={spaceState} section="notes" unsaved={titleDirty && !online} />
       {/* The "desk": a tinted surface the page sits on, so the writing area reads as one sheet. */}
       <div className="min-h-[calc(100dvh-3rem)] bg-muted/40 pb-16">
         <header className="mx-auto flex max-w-4xl items-center gap-x-3 gap-y-2 px-4 pb-4 pt-5 sm:px-2">
@@ -77,7 +91,13 @@ export default function NotePage() {
               maxLength={NOTE_TITLE_MAX}
               aria-label="Note title"
               data-testid="note-title"
+              onChange={(e) => {
+                titleDraft.current = e.target.value
+                setTitleDirty(e.target.value.trim() !== note.data.title)
+              }}
               onBlur={(e) => {
+                titleDraft.current = null
+                setTitleDirty(false)
                 const title = e.target.value.trim()
                 if (title && title !== note.data.title) void run('renameNote', { noteId, title })
                 else e.target.value = note.data.title
@@ -127,7 +147,7 @@ export default function NotePage() {
           onConfirm={async () => {
             const res = await run('deleteNote', { noteId })
             setDeleting(false)
-            // Already confirmed by the delete dialog; don't ask "Leave this note?" too.
+            // Already confirmed by the delete dialog; don't ask "Leave without saving?" too.
             if (res.success) navigate(`/spaces/${spaceId}?tab=notes`, { replace: true, state: LEAVE_CONFIRMED })
           }}
         />

@@ -6,7 +6,7 @@
  * online and who is on this board.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
 import { BookOpen, Eraser, MoreHorizontal, SearchX, Trash2 } from 'lucide-react'
@@ -26,6 +26,7 @@ import { LEAVE_CONFIRMED } from '@/lib/leave-guard'
 import { BOARD_TITLE_MAX } from '@/lib/game-rules'
 import { layoutMindMap, mindMapSchema } from '@/lib/mindmap'
 import { usePageTitle } from '@/lib/page-title'
+import { useOnline } from '@/lib/use-online'
 import { useAction } from '@/lib/use-action'
 import { useSpace } from '@/lib/use-space'
 import type { Board } from '@/schemas/board-schemas'
@@ -41,6 +42,20 @@ export default function BoardPage() {
   const board = records[0]
   const { run, pending } = useAction()
   const [deleting, setDeleting] = useState(false)
+  /** A new title typed but not saved yet; text on the board that can't be saved (offline). */
+  const [titleDirty, setTitleDirty] = useState(false)
+  const [textDirty, setTextDirty] = useState(false)
+  const titleDraft = useRef<string | null>(null)
+  const online = useOnline()
+  // Leaving without blurring the title (e.g. the browser's Back) still saves it.
+  const saveTitleOnLeave = useRef(() => {})
+  useEffect(() => {
+    saveTitleOnLeave.current = () => {
+      const title = titleDraft.current?.trim()
+      if (board && title && title !== board.data.title) void run('renameBoard', { boardId, title })
+    }
+  })
+  useLayoutEffect(() => () => saveTitleOnLeave.current(), [])
   usePageTitle(board?.data.title ?? 'Board')
 
   // The generated map, laid out, for its creator to draw once.
@@ -79,7 +94,7 @@ export default function BoardPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <SpaceFocusBar state={spaceState} section="boards" />
+      <SpaceFocusBar state={spaceState} section="boards" unsaved={(titleDirty && !online) || textDirty} />
       {/* One bar (the space bar); the board's name and menu float over the canvas. */}
       <CanvasView
         key={board.recordId}
@@ -90,6 +105,7 @@ export default function BoardPage() {
         onDrawn={onDrawn}
         exportName={board.data.title}
         fitOnOpen={board.data.kind === 'mindmap'}
+        onUnsavedChange={setTextDirty}
         header={(boardActions) => (
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card/95 py-1 pl-1 pr-1 shadow-sm backdrop-blur">
             <div className="min-w-0 flex-1">
@@ -98,7 +114,13 @@ export default function BoardPage() {
                 defaultValue={board.data.title}
                 maxLength={BOARD_TITLE_MAX}
                 aria-label="Board title"
+                onChange={(e) => {
+                  titleDraft.current = e.target.value
+                  setTitleDirty(e.target.value.trim() !== board.data.title)
+                }}
                 onBlur={(e) => {
+                  titleDraft.current = null
+                  setTitleDirty(false)
                   const title = e.target.value.trim()
                   if (title && title !== board.data.title) void run('renameBoard', { boardId, title })
                   else e.target.value = board.data.title
@@ -152,7 +174,7 @@ export default function BoardPage() {
         onConfirm={async () => {
           const res = await run('deleteBoard', { boardId })
           setDeleting(false)
-          // Already confirmed by the delete dialog; don't ask "Leave this board?" too.
+          // Already confirmed by the delete dialog; don't ask "Leave without saving?" too.
           if (res.success) navigate(back, { replace: true, state: LEAVE_CONFIRMED })
         }}
       />

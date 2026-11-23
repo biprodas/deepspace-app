@@ -271,3 +271,40 @@ test('the eraser removes what it passes over; Clear board empties it, and Restor
   await expect(page.getByTestId('canvas-view')).toContainText('Connected', { timeout: 20_000 })
   await expect(shapesOn(page)).toHaveCount(0)
 })
+
+test('leaving a board never asks when online; text being written is saved on the way out', async ({ users }) => {
+  const [ownerUser] = await users(1)
+  const page = ownerUser.page
+  const owner = await actionsAs(page)
+  const space = await createTestSpace(owner, 'Board leaving')
+  const { data } = await owner<{ boardId: string }>('createBoard', { spaceId: space!.spaceId, title: 'Leave me' })
+  const boardUrl = `/spaces/${space!.spaceId}/boards/${data!.boardId}`
+  const ask = page.getByRole('dialog', { name: 'Leave without saving?' })
+  await page.setViewportSize({ width: 1280, height: 800 })
+
+  // Nothing unsaved: Exit goes straight back.
+  await page.goto(boardUrl)
+  await expect(page.getByTestId('canvas-view')).toContainText('Connected', { timeout: 20_000 })
+  await page.getByTestId('space-exit').click()
+  await expect(page).toHaveURL(/\?tab=boards$/)
+  await expect(ask).toHaveCount(0)
+
+  // Back while writing in a sticky note: no prompt, and the text is saved.
+  // Opened from the space's list, as people do, so Back stays inside the app.
+  await page.goto(`/spaces/${space!.spaceId}?tab=boards`)
+  await page.getByRole('link', { name: /Leave me/ }).click({ timeout: 15_000 })
+  await expect(page.getByTestId('canvas-view')).toContainText('Connected', { timeout: 20_000 })
+  const box = (await page.getByTestId('canvas-svg').boundingBox())!
+  await page.getByTestId('tool-note').click()
+  await page.mouse.click(box.x + 600, box.y + 360)
+  await page.getByTestId('canvas-text-input').fill('Half a thought')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/spaces\/[^/]+(\?tab=boards)?$/)
+  await expect(ask).toHaveCount(0)
+
+  // Reopened, the note kept its text (wrapped lines are separate tspans, hence \s*).
+  await page.goto(boardUrl)
+  await expect(page.getByTestId('canvas-svg').locator('[data-kind="note"]')).toContainText(/Half\s*a\s*thought/, {
+    timeout: 20_000,
+  })
+})

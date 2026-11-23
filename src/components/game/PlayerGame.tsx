@@ -12,15 +12,17 @@ import { CheckCircle2, Clock, Hourglass, Pause, WifiOff, XCircle } from 'lucide-
 import { useCountdown, useServerOffset } from '@/lib/clock'
 import { useAction } from '@/lib/use-action'
 import type { RoomState } from '@/lib/use-room'
+import { AddToNotes } from './AddToNotes'
 import { AnswerTiles } from './AnswerTiles'
 import { Countdown } from './Countdown'
 import { RevealPanel } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
 export function PlayerGame({ state }: { state: RoomState }) {
-  const { room, round, question, me, answersByRound, standings, names, userId, online, approvedCount } = state
+  const { room, round, question, me, answersByRound, standings, names, userId, online, approvedCount, flaggedRounds } =
+    state
   const offset = useServerOffset()
-  const { run } = useAction()
+  const { run, pending } = useAction()
   // The tile tapped while the answer is in flight; cleared if refused.
   const [sending, setSending] = useState<{ roundId: string; choice: number } | null>(null)
   const left = useCountdown(round?.data.deadline, offset, room?.data.status === 'paused' ? round?.data.remainingMs : undefined)
@@ -94,7 +96,26 @@ export function PlayerGame({ state }: { state: RoomState }) {
 
       {status === 'reveal' ? (
         <>
-          <RevealPanel question={question} round={round.data} picked={answer?.choiceIndex} />
+          <RevealPanel
+            question={question}
+            round={round.data}
+            picked={answer?.choiceIndex}
+            confused={{
+              flagged: flaggedRounds.has(round.recordId),
+              pending: pending === 'flagConfused',
+              onFlag: () => void run('flagConfused', { roundId: round.recordId }),
+            }}
+          />
+          {room.data.spaceId && (
+            <AddToNotes
+              roomId={room.recordId}
+              spaceId={room.data.spaceId}
+              userId={userId}
+              roundId={round.recordId}
+              question={question}
+              round={round.data}
+            />
+          )}
           <section>
             <h2 className="mb-2 text-sm font-semibold">Standings</h2>
             <StandingsList standings={standings} names={names} userId={userId} limit={5} />

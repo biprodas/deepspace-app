@@ -4,7 +4,8 @@
  * round's reveal fields, which the server fills only after the deadline.
  */
 
-import { ExternalLink, Quote } from 'lucide-react'
+import { ExternalLink, HelpCircle, Quote } from 'lucide-react'
+import { Button } from '@/components/ui'
 import type { Question, Round } from '@/schemas/game-types'
 import { AnswerTiles } from './AnswerTiles'
 
@@ -13,9 +14,15 @@ interface RevealPanelProps {
   round: Round
   picked?: number
   size?: 'md' | 'lg'
+  /**
+   * "Still confused" (docs/features.md F12). Players pass `onFlag` to get the
+   * button; the host omits it and sees the count instead.
+   */
+  confused?: { flagged?: boolean; onFlag?: () => void; pending?: boolean }
 }
 
-export function RevealPanel({ question, round, picked, size }: RevealPanelProps) {
+export function RevealPanel({ question, round, picked, size, confused }: RevealPanelProps) {
+  const count = round.confusedCount ?? 0
   return (
     <div className="space-y-4" data-testid="reveal">
       <AnswerTiles
@@ -31,6 +38,31 @@ export function RevealPanel({ question, round, picked, size }: RevealPanelProps)
           {round.explanation && <p>{round.explanation}</p>}
           {round.sourceQuote && <SourceQuote quote={round.sourceQuote} url={round.sourceUrl} />}
         </div>
+      )}
+      {confused?.onFlag ? (
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="flag-confused"
+          disabled={confused.flagged}
+          loading={confused.pending}
+          onClick={confused.onFlag}
+        >
+          <HelpCircle />
+          {confused.flagged ? 'The host knows you’re confused' : 'Still confused?'}
+        </Button>
+      ) : (
+        confused &&
+        count > 0 && (
+          <p
+            role="status"
+            data-testid="confused-count"
+            className="inline-flex items-center gap-2 rounded-full border border-warning/50 bg-warning/10 px-3 py-1 text-sm font-medium"
+          >
+            <HelpCircle className="size-4" aria-hidden="true" />
+            {count} {count === 1 ? 'player is' : 'players are'} still confused
+          </p>
+        )
       )}
     </div>
   )

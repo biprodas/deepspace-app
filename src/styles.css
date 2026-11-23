@@ -119,6 +119,14 @@
 
   /* Animations */
   --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  /* Room reactions (src/components/room/Reactions.tsx); duration matches FLOAT_MS. */
+  --animate-float-up: float-up 2.6s ease-out forwards;
+}
+
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(0) scale(0.6); }
+  12% { opacity: 1; transform: translateY(-2rem) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-22rem) scale(1); }
 }
 
 /* Theme override blocks live in `themes.css` — imported above. */

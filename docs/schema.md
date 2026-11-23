@@ -143,6 +143,7 @@ model Room {
   currentRoundId String?    // Round.recordId
   startedAt      DateTime?
   completedAt    DateTime?
+  spaceId        String?   // Space.recordId when hosted in a study space
 }
 
 /// One row per question played in a room. Readable by all members:
@@ -165,6 +166,7 @@ model Round {
   sourceQuote  String?
   sourceUrl    String?
   distribution Json?       // number[4]: players per option
+  confusedCount Int @default(0) // players who flagged "still confused" (from RoundFlag)
 
   @@unique([roomId, roundNumber])
 }
@@ -198,6 +200,125 @@ model RoomInvite {
   emailSent   Boolean  @default(false)
 
   @@unique([roomId, key])
+}
+
+/// "Still confused" on a revealed round; each player reads only their own.
+model RoundFlag {
+  recordId String @id
+  roomId   String
+  roundId  String // Round.recordId
+  userId   String // read: 'own'
+
+  @@unique([roundId, userId])
+}
+
+/// A live poll in a room; one open at a time. Counts recomputed from PollVote.
+model Poll {
+  recordId  String    @id
+  roomId    String
+  question  String
+  options   Json      // string[2..6]
+  kind      String    // poll | confidence
+  status    String    // open | closed
+  createdBy String    // User.id (host or co-host)
+  counts    Json      // number[]: votes per option
+  createdAt DateTime
+  closedAt  DateTime?
+}
+
+/// Each player reads only their own vote.
+model PollVote {
+  recordId    String @id
+  pollId      String // Poll.recordId
+  roomId      String
+  userId      String // read: 'own'
+  choiceIndex Int
+
+  @@unique([pollId, userId])
+}
+
+/// A study space; a DeepSpace team. read: 'team' (owner or active TeamMember).
+model Space {
+  recordId    String   @id
+  name        String
+  description String?
+  ownerId     String   // User.id
+  code        String   @unique
+  teamId      String   // = recordId; the 'team' rule matches against it
+  createdAt   DateTime
+}
+
+/// Membership. The SDK's 'team' rule reads this collection by name.
+model TeamMember {     // collection: team_members
+  recordId    String   @id
+  teamId      String   // Space.recordId
+  userId      String   // User.id
+  displayName String
+  role        String   // owner | member
+  status      String   // active | removed (removed can't rejoin)
+  joinedAt    DateTime
+
+  @@unique([teamId, userId])
+}
+
+/// Like RoomInvite, for a space; only the invitee reads it.
+model SpaceInvite {
+  recordId    String   @id
+  spaceId     String
+  code        String
+  spaceName   String
+  invitedBy   String
+  inviterName String
+  key         String
+  email       String?
+  inviteeId   String?
+  status      String   // pending | accepted | dismissed
+  invitedAt   DateTime
+  emailSent   Boolean  @default(false)
+
+  @@unique([spaceId, key])
+}
+
+/// A shared note in a space. Named `documents` because the Yjs route reads it;
+/// the text lives in the Yjs room named after recordId. read: 'team'.
+model Note {           // collection: documents
+  recordId  String   @id
+  title     String
+  spaceId   String   // Space.recordId
+  teamId    String   // = spaceId
+  ownerId   String   // User.id (author)
+  roomId    String?  // set on a game's session note
+  createdAt DateTime
+}
+
+/// A whiteboard or AI mind map in a space; shapes live in the canvas room
+/// named after recordId. read: 'team'.
+model Board {          // collection: boards
+  recordId     String   @id
+  title        String
+  kind         String   // whiteboard | mindmap
+  spaceId      String   // Space.recordId
+  teamId       String   // = spaceId
+  ownerId      String   // User.id (creator)
+  topic        String?  // mind map: the Wikipedia article
+  mindMap      Json?    // mind map: the generated tree (src/lib/mindmap.ts)
+  mindMapDrawn Boolean  @default(false)
+  createdAt    DateTime
+}
+
+/// Admin audit log (F17). Server-written; read: admins only. Pruned after 90 days.
+model AuditEntry {     // collection: audit_log
+  recordId    String   @id
+  at          DateTime
+  actorId     String   // User.id
+  actorName   String
+  action      String   // e.g. space.member_removed, ai.mind_map, user.role_changed
+  category    String   // moderation | deletion | paid | admin | roles
+  targetType  String?
+  targetId    String?
+  targetLabel String?  // kept readable after the target is deleted
+  meta        Json?    // e.g. { count: 3 }, { from: 'member', to: 'admin' }
+  source      String   // server | verified | reported
 }
 
 /// Each player reads only their own rows.
@@ -249,7 +370,14 @@ User ─┬─< Quiz ─┬─< Question ── 1:1 ── AnswerKey
       │         └─< Room ─┬─< Round ─< Answer >── User
       │                   ├─< RoomPlayer >── User
       │                   ├─< RoomInvite >── User (optional)
+      │                   ├─< Poll ─< PollVote >── User
+      │                   ├─< RoundFlag >── User (per Round)
       │                   └─< Standing   >── User
+      └─< Space ─┬─< TeamMember >── User
+                 ├─< SpaceInvite >── User (optional)
+                 ├─< Note (documents; text in Yjs)
+                 ├─< Board (shapes in the canvas room)
+                 └─< Room (optional spaceId)
 ```
 
 References are plain id columns. Assume no foreign-key enforcement (the

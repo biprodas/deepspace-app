@@ -45,31 +45,45 @@ export function InviteButton({ state }: { state: RoomState }) {
           <p className="text-xs text-muted-foreground">They can join at any time, even mid-game.</p>
         </div>
 
-        {canInvite && <InvitePeople roomId={room.recordId} inRoom={inRoom} />}
+        {canInvite && <InvitePeople target={{ roomId: room.recordId }} inRoom={inRoom} />}
 
-        <ShareLink code={room.data.code} title={quiz?.data.title} compact={canInvite} />
+        <ShareLink
+          code={room.data.code}
+          path={joinPath(room.data.code)}
+          shareTitle={quiz ? `Join “${quiz.data.title}” on StudyArena` : 'Join my StudyArena game'}
+          hint={`Join at ${window.location.host}/join with code`}
+          compact={canInvite}
+        />
       </PopoverContent>
     </Popover>
   )
 }
 
+interface ShareLinkProps {
+  code: string
+  /** The join path for this code, e.g. joinPath(code). */
+  path: string
+  /** Share-sheet title, e.g. "Join “Biology” on StudyArena". */
+  shareTitle: string
+  /** Shown above the big code when not compact, e.g. "Join at host/join with code". */
+  hint: string
+  compact: boolean
+}
+
 /**
  * The code and the link with one button: the device's share sheet where
- * there is one (phones), otherwise copy. Compact under the host's invite form.
+ * there is one (phones), otherwise copy. Compact under an invite form.
+ * Used for rooms here and for study spaces.
  */
-function ShareLink({ code, title, compact }: { code: string; title?: string; compact: boolean }) {
-  const link = `${window.location.origin}${joinPath(code)}`
+export function ShareLink({ code, path, shareTitle, hint, compact }: ShareLinkProps) {
+  const link = `${window.location.origin}${path}`
   const { copied, copy } = useCopy()
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   async function shareOrCopy() {
     if (!canShare) return copy(link)
     try {
-      await navigator.share({
-        title: title ? `Join “${title}” on StudyArena` : 'Join my StudyArena game',
-        text: `Join with code ${code}`,
-        url: link,
-      })
+      await navigator.share({ title: shareTitle, text: `Join with code ${code}`, url: link })
     } catch (err) {
       // Dismissing the sheet is an AbortError; anything else (refused, unsupported data) falls back to copying.
       if (!(err instanceof DOMException && err.name === 'AbortError')) await copy(link)
@@ -85,7 +99,7 @@ function ShareLink({ code, title, compact }: { code: string; title?: string; com
         </div>
       ) : (
         <div className="flex flex-col items-center gap-1 px-4 py-5 text-center">
-          <p className="text-xs font-medium text-muted-foreground">Join at {window.location.host}/join with code</p>
+          <p className="text-xs font-medium text-muted-foreground">{hint}</p>
           <p className="font-mono text-4xl font-extrabold tracking-[0.18em]">{code}</p>
         </div>
       )}

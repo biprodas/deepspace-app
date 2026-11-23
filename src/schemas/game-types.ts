@@ -11,6 +11,8 @@ export const GENERATION_STAGES = ['fetching', 'writing', 'saving'] as const
 export const ROOM_STATUSES = ['lobby', 'question', 'reveal', 'paused', 'final', 'cancelled'] as const
 export const ROUND_STATUSES = ['active', 'revealed', 'skipped'] as const
 export const INVITE_STATUSES = ['pending', 'accepted', 'dismissed'] as const
+export const POLL_KINDS = ['poll', 'confidence'] as const
+export const POLL_STATUSES = ['open', 'closed'] as const
 
 export type SourceType = (typeof SOURCE_TYPES)[number]
 export type Difficulty = (typeof DIFFICULTIES)[number]
@@ -20,6 +22,8 @@ export type GenerationStage = (typeof GENERATION_STAGES)[number]
 export type RoomStatus = (typeof ROOM_STATUSES)[number]
 export type RoundStatus = (typeof ROUND_STATUSES)[number]
 export type InviteStatus = (typeof INVITE_STATUSES)[number]
+export type PollKind = (typeof POLL_KINDS)[number]
+export type PollStatus = (typeof POLL_STATUSES)[number]
 
 /** A finished or ended game: nothing can change any more. */
 export const isClosedStatus = (status: RoomStatus) => status === 'final' || status === 'cancelled'
@@ -89,6 +93,8 @@ export interface Room {
   currentRoundId?: string
   startedAt?: number
   completedAt?: number
+  /** The study space this game belongs to, if any. */
+  spaceId?: string
 }
 
 export interface Round {
@@ -107,6 +113,38 @@ export interface Round {
   sourceQuote?: string
   sourceUrl?: string
   distribution?: number[]
+  /** Players who flagged this reveal "still confused"; recomputed from `round_flags`. */
+  confusedCount?: number
+}
+
+/** "Still confused" on one revealed round, once per player. */
+export interface RoundFlag {
+  roomId: string
+  roundId: string
+  userId: string
+}
+
+/**
+ * A live poll the host runs in a room. One poll is open at a time; `counts`
+ * is recomputed from `poll_votes` on every vote, which stay private.
+ */
+export interface Poll {
+  roomId: string
+  question: string
+  options: string[]
+  kind: PollKind
+  status: PollStatus
+  createdBy: string
+  counts: number[]
+  createdAt: number
+  closedAt?: number
+}
+
+export interface PollVote {
+  pollId: string
+  roomId: string
+  userId: string
+  choiceIndex: number
 }
 
 export interface RoomPlayer {

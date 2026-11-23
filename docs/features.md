@@ -67,7 +67,10 @@ Build these end to end before anything in section 2.
 - Host opens a room from an approved quiz → unique 6-character join code and
   a share link (`/join/K7QX9P`).
 - Players join by code or link; one row per player per room (`uniqueOn`);
-  max 50 players per room.
+  max 50 players per room. A code can be typed from anywhere: Home's code
+  field, or the header's Join (a popover on desktop, the top of the phone
+  menu). `/join/:code` tries the code as a game, then as a study space, so
+  people don't need to know which kind of code they have.
 - Lobby: live list of who's in the room and who's online (presence).
 - Host controls: start the game, remove a player. A removed player's
   `joinRoom` is refused.
@@ -148,6 +151,89 @@ Build these end to end before anything in section 2.
 - **F11. All-time leaderboard**, kept by the server from final standings
   (not `npx deepspace add leaderboard`, which lets users submit scores;
   see implementation-plan.md M6).
+- **F12. Polls, "still confused" and reactions** (added after the first
+  release): the host or a co-host opens a poll in a lobby or live game
+  (templates: confidence check, ready?, pace; or 2–6 custom options). One poll
+  is open at a time. Players vote and can change their vote until it closes;
+  votes are private and only the poll's counts are published, recomputed on
+  every vote. After a reveal, players can mark "still confused" once per
+  question, and the host sees the count. Emoji reactions travel as presence
+  state, so nothing is stored and they cover most of what chat would, without
+  free text to moderate.
+  **Done when:** a player's vote shows in both browsers' counts, a closed poll
+  refuses votes, and a host can't vote.
+- **F13. Study spaces:** a long-lived home for a study group (`/spaces`).
+  The owner creates a space and shares its code or link, or invites by
+  account or email (any member can invite). Members see each other live,
+  and the space's games; a member can host one of their quizzes "in" the
+  space (`rooms.spaceId`). Owners edit, delete, and remove members (who then
+  can't rejoin with the code); members leave and may rejoin.
+  A space is a DeepSpace *team*: space rows carry `teamId` and are readable
+  only by active `team_members` rows (the SDK's `'team'` rule), so
+  non-members never receive them. Notes and boards (later) use the same rule.
+  Note and board pages open in focus mode, like a live game: a slim space
+  bar replaces the app navigation, with the members online and who is in
+  the same note or board (locations are presence state, nothing stored).
+  The space page itself keeps the app navigation and shows the same stack.
+  **Done when:** a non-member gets nothing for a space id, joining by link
+  shows it, a removed member loses it and can't rejoin.
+- **F14. Shared notes in a space:** members write notes together live
+  (Tiptap + Yjs, with each other's cursors; the editor comes from DeepSpace's
+  `documents` feature). Note rows are team-scoped like spaces, and the Yjs
+  route admits only the space's active members, so leaving or being removed
+  cuts editing off too; unknown doc ids are refused. Editing is Notion-style:
+  "/" opens a block menu (headings, lists, to-dos, quote, code, divider), a
+  handle beside each block adds a block or drags it, and selecting text shows
+  a formatting bar; the note is a white page in both colour modes. "Make a quiz" sends the
+  note's text to the existing notes generator, so questions stay backed by a
+  sentence from the note. In a game hosted in a space, members can "Add to
+  notes" on a reveal: the question, answer, explanation and source go into
+  that game's session note.
+  **Done when:** two members see each other's typing, a member who leaves
+  gets no note and no socket, and a pinned reveal shows in the session note.
+- **F15. Whiteboards and AI mind maps in a space:** members draw together on
+  a board (rectangles, ellipses, lines, text boxes; each other's cursors with
+  names), using DeepSpace's `canvas` feature. The canvas route admits only
+  the board's space members (it used to admit any signed-in user to any id).
+  An AI mind map starts from a Wikipedia topic: Claude drafts a root, 2–6
+  branches and up to 4 children each, the reply is checked and trimmed to
+  fit, quotes not in the article are dropped, and the generator's browser
+  lays it out radially and draws it once; then it's an ordinary board.
+  5 mind maps per user per day (credit guard). Lines don't follow nodes that
+  are moved, and drawing needs a mouse (no touch yet).
+  **Done when:** a member's shape appears for the other, a member who leaves
+  gets no board and no socket, and a generated map is drawn once.
+
+- **F16. Admin console** (`/admin`, admins only, from the account menu): a
+  sidebar of Overview (counts of users, quizzes, games, spaces, notes,
+  boards), Users (everyone, searchable, role changes with a confirmation),
+  API usage (Claude drafts and tokens, mind maps, Wikipedia lookups, invite
+  emails; last 30 days and all time, from the app's own records, since the
+  billing ledger isn't readable from the app), Credits (the admin's DeepSpace
+  balance, with links to the dashboard) and Data (the JSON export). Numbers
+  come from owner-only actions (`adminSummary`, `exportData`).
+
+- **F17. Audit log** (admin console → Audit log): who removed, deleted,
+  spent or changed what. Server actions append an entry after moderation
+  (space member or game player removed, co-host added or removed),
+  deletions (space, quiz, note, board), paid calls (AI quiz drafts, mind
+  maps, invite emails as one entry with a count) and the data export. Role
+  changes go through the platform, so the console reports them with
+  `logRoleChange` (admins only), which marks the entry *verified* when the
+  user already has the new role, else *reported by browser*. The
+  `audit_log` collection is server-written and admin-read; a daily cron task
+  deletes entries older than 90 days. Everyday activity (joining, answering,
+  editing) isn't logged.
+
+- **F18. Settings** (`/settings`): Profile (change your name, which is the
+  DeepSpace account name shown in every DeepSpace app; email and sign-in
+  method shown read-only, since real accounts take them from Google or
+  GitHub), Password (email-and-password accounts only; can sign out other
+  devices), Devices (signed-in sessions, sign out of the others), and
+  Preferences: theme (system, light, dark) and showing game reactions on
+  this device, and invite emails, which sync and which the server honours
+  by skipping the email (the in-app invite still arrives). Account changes
+  go to the platform auth worker through `/api/auth` (Better Auth).
 
 ## 3. Deliberately left out (explain in the write-up)
 
@@ -157,7 +243,7 @@ Build these end to end before anything in section 2.
 | Voice / reading aloud (ElevenLabs) | Costs per character and doesn't help the core game |
 | Payments | Nothing to sell during evaluation |
 | Public room browser / matchmaking | Needs moderation; scope without depth |
-| Team mode, chat | A different game; chat needs moderation |
+| Team mode, chat | A different game; chat needs moderation (polls and reactions, F12, cover the live feedback without free text) |
 | Image / audio questions | Source licensing and extra rendering work |
 | File uploads for notes | Pasting text covers the need without file parsing |
 | Draft/published states, duplicate quiz, points per question | More forms, no added depth; approval already covers "ready to play" |
@@ -195,6 +281,20 @@ Key points:
 | `skipQuestion` | host / co-host | Mark the round skipped, move on without scoring |
 | `pauseRoom` / `resumeRoom` | host / co-host | Store the round's remaining time / set a fresh deadline |
 | `endRoom` | host | End early: status `cancelled`, keep results so far |
+| `createPoll` / `closePoll` | host / co-host | Open a poll (closing any open one) / close it |
+| `votePoll` | player | Cast or change a vote; recompute the poll's counts |
+| `flagConfused` | player | Mark a revealed question "still confused"; recompute the round's count |
+| `createSpace` / `updateSpace` / `deleteSpace` | member / owner / owner | Space with a join code and the owner's membership / rename / delete with memberships and invites |
+| `joinSpace` / `leaveSpace` | member | Join by code (refuses removed members) / leave (can rejoin) |
+| `removeMember` | owner | Mark a membership removed |
+| `inviteToSpace` | space member | Invite by account or email, as `invitePlayers` does for games |
+| `createNote` / `renameNote` | space member | Note row (its text is edited live over Yjs) / rename |
+| `deleteNote` | note's author or space owner | Delete a note |
+| `sessionNote` | space member | The session note for a game in a space, created on first use |
+| `createBoard` / `renameBoard` | space member | Whiteboard row (shapes are drawn live over the canvas route) / rename |
+| `createMindMap` | space member | Wikipedia topic → Claude → checked tree, stored on a new board (5 a day) |
+| `markMindMapDrawn` | the map's generator | Record that the map was drawn, so it isn't drawn twice |
+| `deleteBoard` | board's creator or space owner | Delete a board |
 
 Every host-only action checks the caller against the room on the server.
 

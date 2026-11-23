@@ -9,7 +9,9 @@ import { z } from 'zod'
 import { MAX_PLAYERS } from '../lib/game-rules'
 import { mintJoinCode, parseJoinCode } from '../lib/join-code'
 import type { Question, Quiz, Room, RoomPlayer, Round } from '../schemas/game-types'
+import { audit } from './audit'
 import { acceptInvites } from './invite'
+import { requireMember } from './space'
 import {
   ActionError,
   defineAction,
@@ -54,11 +56,16 @@ async function nextRoundNumber(tools: ActionTools, roomId: string): Promise<numb
  * Opens a lobby for an owned quiz with at least one approved question. If
  * the host already has an open game of this quiz, that one is returned
  * instead: pressing "Host a game" again must not strand players who joined
- * the first code in a room the host has left.
+ * the first code in a room the host has left (even when asked for a
+ * different space: one quiz runs in one open game at a time).
+ *
+ * With `spaceId`, the game belongs to that study space; the host must be a
+ * member of it.
  */
-const createRoom = defineAction(z.object({ quizId: recordId }), async ({ userId, tools }, p) => {
+const createRoom = defineAction(z.object({ quizId: recordId, spaceId: recordId.optional() }), async ({ userId, tools }, p) => {
   const quiz = await getRecord<Quiz>(tools, 'quizzes', p.quizId, 'Quiz')
   requireQuizOwner(quiz, userId)
+  if (p.spaceId) await requireMember(tools, p.spaceId, userId)
   // Oldest first: that's the code players most likely already have.
   const [open] = (
     await queryRecords<Room>(tools, 'rooms', { quizId: p.quizId, hostId: userId }, { orderBy: 'createdAt', orderDir: 'asc' })
@@ -81,6 +88,7 @@ const createRoom = defineAction(z.object({ quizId: recordId }), async ({ userId,
       hostId: userId,
       coHostIds: [],
       status: 'lobby',
+      ...(p.spaceId ? { spaceId: p.spaceId } : {}),
     }
     const result = await tools.create('rooms', { ...room })
     if (isDuplicate(result)) continue
@@ -128,7 +136,7 @@ const joinRoom = defineAction(z.object({ code: z.string().max(200) }), async ({ 
   const result = await tools.create('room_players', { ...player })
   // A double-click raced us to the same row: the first one counts.
   if (!isDuplicate(result)) unwrap(result)
-  await acceptInvites(tools, roomId, userId)
+  await acceptInvites(tools, 'room_invites', { roomId }, userId)
   return { roomId, role: 'player' as const }
 })
 
@@ -141,7 +149,16 @@ const removePlayer = defineAction(
     requireOpen(room)
     const player = await findPlayer(tools, p.roomId, p.userId)
     if (!player) throw new ActionError('That player isn’t in this game', 'not_found')
-    if (!player.data.removed) unwrap(await tools.update('room_players', player.recordId, { removed: true }))
+    if (!player.data.removed) {
+      unwrap(await tools.update('room_players', player.recordId, { removed: true }))
+      await audit(tools, userId, {
+        action: 'room.player_removed',
+        targetType: 'room',
+        targetId: p.roomId,
+        targetLabel: room.data.code,
+        meta: { player: player.data.displayName },
+      })
+    }
     return { roomId: p.roomId }
   },
 )
@@ -166,6 +183,13 @@ const addCoHost = defineAction(
     const coHostIds = [...new Set([...(room.data.coHostIds ?? []), p.userId])]
     unwrap(await tools.update('rooms', p.roomId, { coHostIds }))
     unwrap(await tools.remove('room_players', player.recordId))
+    await audit(tools, userId, {
+      action: 'room.cohost_added',
+      targetType: 'room',
+      targetId: p.roomId,
+      targetLabel: room.data.code,
+      meta: { member: player.data.displayName },
+    })
     return { roomId: p.roomId }
   },
 )
@@ -176,8 +200,16 @@ const removeCoHost = defineAction(
   async ({ userId, tools }, p) => {
     const room = await getRecord<Room>(tools, 'rooms', p.roomId, 'Room')
     requireHost(room, userId)
+    if (!(room.data.coHostIds ?? []).includes(p.userId)) return { roomId: p.roomId }
     const coHostIds = (room.data.coHostIds ?? []).filter((id) => id !== p.userId)
     unwrap(await tools.update('rooms', p.roomId, { coHostIds }))
+    await audit(tools, userId, {
+      action: 'room.cohost_removed',
+      targetType: 'room',
+      targetId: p.roomId,
+      targetLabel: room.data.code,
+      meta: { member: await displayName(tools, p.userId) },
+    })
     return { roomId: p.roomId }
   },
 )

@@ -14,13 +14,14 @@ import { useCountdown, useServerOffset } from '@/lib/clock'
 import { GRACE_MS } from '@/lib/game-rules'
 import { useAction } from '@/lib/use-action'
 import type { RoomState } from '@/lib/use-room'
+import { AddToNotes } from './AddToNotes'
 import { AnswerTiles } from './AnswerTiles'
 import { Countdown } from './Countdown'
 import { RevealPanel } from './RevealPanel'
 import { StandingsList } from './StandingsList'
 
 export function HostGame({ state }: { state: RoomState }) {
-  const { room, round, question, players, online, approvedCount, standings, names, role } = state
+  const { room, round, question, players, online, approvedCount, standings, names, role, userId } = state
   const offset = useServerOffset()
   const { run, pending } = useAction()
   const [ending, setEnding] = useState(false)
@@ -58,7 +59,19 @@ export function HostGame({ state }: { state: RoomState }) {
 
       {isReveal ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <RevealPanel question={question} round={round.data} size="lg" />
+          <div className="space-y-3">
+            <RevealPanel question={question} round={round.data} size="lg" confused={{}} />
+            {room.data.spaceId && (
+              <AddToNotes
+                roomId={roomId}
+                spaceId={room.data.spaceId}
+                userId={userId}
+                roundId={round.recordId}
+                question={question}
+                round={round.data}
+              />
+            )}
+          </div>
           <section>
             <h2 className="mb-3 font-display text-lg font-bold">Standings</h2>
             <StandingsList standings={standings} names={names} limit={8} online={online} />

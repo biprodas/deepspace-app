@@ -4,7 +4,8 @@
  * Caller identity in query parameters and headers is never trusted. Routes
  * scrub it and forward verified JWT identity in internal-only headers; the
  * documents-aware Yjs route additionally resolves an application role from
- * the documents collection.
+ * the documents collection (for study-space notes: from space membership),
+ * and the canvas route admits only a board's space members.
  */
 
 import type { Context, Hono } from 'hono'
@@ -49,6 +50,8 @@ interface DocumentRecordForAccess {
   ownerId?: string
   collaborators?: string
   editors?: string
+  /** Set on study-space notes (src/schemas/note-schemas.ts): access follows space membership. */
+  teamId?: string
 }
 
 type DocumentAccessLookup =
@@ -66,24 +69,41 @@ function parseAccessList(raw: string | undefined): string[] {
   }
 }
 
-async function getDocumentForAccess(env: Env, docId: string): Promise<DocumentAccessLookup> {
+/** Runs a records tool in the app's RecordRoom as the app (RBAC off), like a server action. */
+async function appRecordsTool(env: Env, tool: string, params: Record<string, unknown>): Promise<unknown> {
   const stub = env.RECORD_ROOMS.get(env.RECORD_ROOMS.idFromName(`app:${env.DEEPSPACE_APP_ID}`))
+  const res = await stub.fetch(
+    new Request('https://internal/api/tools/execute', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-User-Id': env.OWNER_USER_ID,
+        'X-App-Action': 'true',
+      },
+      body: JSON.stringify({ tool, params }),
+    }),
+  )
+  return res.json()
+}
+
+/** True when `userId` has an active membership in the space (team) `teamId`. */
+async function isActiveTeamMember(env: Env, teamId: string, userId: string): Promise<boolean> {
   try {
-    const res = await stub.fetch(
-      new Request('https://internal/api/tools/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-User-Id': env.OWNER_USER_ID,
-          'X-App-Action': 'true',
-        },
-        body: JSON.stringify({
-          tool: 'records.get',
-          params: { collection: 'documents', recordId: docId },
-        }),
-      }),
-    )
-    const json = (await res.json()) as {
+    const json = (await appRecordsTool(env, 'records.query', {
+      collection: 'team_members',
+      where: { teamId, userId },
+      limit: 1,
+    })) as { success?: boolean; data?: { records?: { data?: { status?: string } }[] } }
+    const status = json.success ? json.data?.records?.[0]?.data?.status : undefined
+    return status === 'active'
+  } catch {
+    return false
+  }
+}
+
+async function getDocumentForAccess(env: Env, docId: string): Promise<DocumentAccessLookup> {
+  try {
+    const json = (await appRecordsTool(env, 'records.get', { collection: 'documents', recordId: docId })) as {
       success?: boolean
       error?: string
       data?: { record?: { data?: DocumentRecordForAccess } }
@@ -109,7 +129,11 @@ async function resolveDocsYjsRole(
   if (lookup.kind === 'not-docs-room') return 'member'
   if (lookup.kind === 'error') return null
   const { doc } = lookup
-  if (doc.ownerId === userId || userId === env.OWNER_USER_ID) return 'admin'
+  if (userId === env.OWNER_USER_ID) return 'admin'
+  // Space notes: every active member edits; anyone else, the note's creator
+  // included once they've left or been removed, is refused.
+  if (doc.teamId) return (await isActiveTeamMember(env, doc.teamId, userId)) ? 'member' : null
+  if (doc.ownerId === userId) return 'admin'
 
   const editors = parseAccessList(doc.editors)
   if (editors.includes(userId)) return 'member'
@@ -118,6 +142,22 @@ async function resolveDocsYjsRole(
   if (collaborators.includes(userId)) return 'viewer'
 
   return null
+}
+
+/** Editor for a board's space members (and the app owner); null for anyone else or any non-board id. */
+async function resolveBoardRole(env: Env, boardId: string, userId: string): Promise<'admin' | 'member' | null> {
+  if (userId === env.OWNER_USER_ID) return 'admin'
+  try {
+    const json = (await appRecordsTool(env, 'records.get', { collection: 'boards', recordId: boardId })) as {
+      success?: boolean
+      data?: { record?: { data?: { teamId?: string } } }
+    }
+    const teamId = json.success ? json.data?.record?.data?.teamId : undefined
+    if (!teamId) return null
+    return (await isActiveTeamMember(env, teamId, userId)) ? 'member' : null
+  } catch {
+    return null
+  }
 }
 
 export function registerRealtimeRoutes(app: Hono<AppContext>): void {
@@ -142,13 +182,21 @@ export function registerRealtimeRoutes(app: Hono<AppContext>): void {
     return stub.fetch(roomRequest)
   })
 
-  app.get(
-    '/ws/canvas/:docId',
-    wsRoute(
-      (env) => env.CANVAS_ROOMS,
-      async (auth, env) => ({ role: await resolveAppRole(env, auth.userId) }),
-    ),
-  )
+  // Canvas rooms are study-space boards (src/schemas/board-schemas.ts): only
+  // the space's active members get in, as editors. Any other id is refused,
+  // so a canvas can't be opened just by knowing or guessing its id.
+  app.get('/ws/canvas/:docId', async (c) => {
+    const docId = c.req.param('docId')
+    const token = new URL(c.req.url).searchParams.get('token')
+    const auth = token ? (await verifyJwt(jwtConfig(c.env), token)).result : null
+    if (!auth) return new Response('Unauthorized', { status: 401 })
+
+    const role = await resolveBoardRole(c.env, docId, auth.userId)
+    if (!role) return new Response('Forbidden', { status: 403 })
+
+    const stub = c.env.CANVAS_ROOMS.get(c.env.CANVAS_ROOMS.idFromName(docId))
+    return stub.fetch(authenticatedRoomRequest(c.req.raw, auth, { role }))
+  })
 
   app.get(
     '/ws/presence/:scopeId',

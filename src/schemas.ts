@@ -19,12 +19,20 @@ import {
 import {
   answersSchema,
   leaderboardSchema,
+  pollVotesSchema,
+  pollsSchema,
   roomInvitesSchema,
   roomPlayersSchema,
   roomsSchema,
+  roundFlagsSchema,
   roundsSchema,
   standingsSchema,
 } from './schemas/game-schemas'
+import { spaceInvitesSchema, spacesSchema, teamMembersSchema } from './schemas/space-schemas'
+import { documentsSchema } from './schemas/note-schemas'
+import { boardsSchema } from './schemas/board-schemas'
+import { auditLogSchema } from './schemas/audit-schemas'
+import { userPrefsSchema } from './schemas/pref-schemas'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
@@ -37,7 +45,17 @@ export const schemas: CollectionSchema[] = [
   roundsSchema,
   roomPlayersSchema,
   roomInvitesSchema,
+  roundFlagsSchema,
+  pollsSchema,
+  pollVotesSchema,
   answersSchema,
   standingsSchema,
   leaderboardSchema,
+  spacesSchema,
+  teamMembersSchema,
+  spaceInvitesSchema,
+  documentsSchema,
+  boardsSchema,
+  auditLogSchema,
+  userPrefsSchema,
 ]

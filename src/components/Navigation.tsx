@@ -1,7 +1,7 @@
 /**
  * Top nav — minimal placeholder bar wired to the app's mechanisms:
- * nav.ts-driven links (with role/dev filtering), a sign-in link to /sign-in,
- * and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
+ * nav.ts-driven links (with role/dev filtering; settings and admin pages go
+ * in the account menu), a sign-in link to /sign-in, and sign-out. Restyle or rebuild it freely; keep the data-testid hooks
  * (`app-navigation`, `nav-sign-in-button`, `nav-user-name`, `nav-user-email`)
  * — the shipped tests rely on them. `nav-user-email` is the one that carries
  * an identity the test can check exactly: a display name is optional, the
@@ -11,13 +11,27 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuthProfileReady, signOut } from 'deepspace'
-import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
+import {
+  ChevronDown,
+  History,
+  House,
+  ListChecks,
+  LogOut,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Trophy,
+  UsersRound,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
 import { Logo } from './landing/bits'
 import type { Role } from '../constants'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
 import { signInPath } from '../lib/auth-redirect'
 import { ColorModeToggle } from './ColorModeToggle'
+import { QuickJoinButton, QuickJoinForm } from './QuickJoin'
 import {
   Avatar,
   AvatarFallback,
@@ -29,6 +43,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui'
+
+/** Icons for account-menu links, by path. */
+const ACCOUNT_ICONS: Record<string, LucideIcon> = {
+  '/settings': Settings,
+  '/admin': ShieldCheck,
+}
+
+/** Icons for the phone menu's rows, by path. The desktop bar stays text-only (see the baseline note below). */
+const MAIN_ICONS: Record<string, LucideIcon> = {
+  '/home': House,
+  '/quizzes': ListChecks,
+  '/spaces': UsersRound,
+  '/history': History,
+  '/leaderboard': Trophy,
+}
 
 export default function Navigation() {
   const { isLoaded, isSignedIn, user, userLoading } = useAuthProfileReady({ requireUser: true })
@@ -51,18 +80,50 @@ export default function Navigation() {
     return item.roles.includes(userRole as Role)
   })
 
+  // Everyday pages sit in the top bar; settings and admin pages in the account menu.
+  const mainNav = visibleNav.filter((item) => item.placement !== 'account')
+  const accountNav = visibleNav.filter((item) => item.placement === 'account')
+
+  const isActive = (item: (typeof nav)[number]) => location.pathname.startsWith(item.path)
+  // Join with a code from anywhere, except Home (its big code field is right there) and the join page itself.
+  const showJoin = location.pathname !== '/home' && !location.pathname.startsWith('/join')
+
+  // Desktop: text pills. They stay inline (not flex) so their words keep the
+  // shared text baseline with the logo; the current section is tinted.
   const navLink = (item: (typeof nav)[number]) => {
-    const active = location.pathname.startsWith(item.path)
+    const active = isActive(item)
     return (
       <Link
         key={item.path}
         to={item.path}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'px-3 py-1.5 text-sm',
-          active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+          'rounded-full px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+          // Same weight either way: bolder text is wider and would nudge the links
+          // along. Hover is neutral grey, so it never looks like a second current page.
+          active ? 'bg-primary/10 text-primary-text' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
         )}
       >
+        {item.label}
+      </Link>
+    )
+  }
+
+  // Phones: full-width rows with an icon, big enough to tap.
+  const mobileLink = (item: (typeof nav)[number]) => {
+    const active = isActive(item)
+    const Icon = MAIN_ICONS[item.path]
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        aria-current={active ? 'page' : undefined}
+        className={cn(
+          'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
+          active ? 'bg-primary/10 text-primary-text' : 'text-foreground hover:bg-muted',
+        )}
+      >
+        {Icon && <Icon className={cn('size-4', active ? 'text-primary-text' : 'text-muted-foreground')} aria-hidden="true" />}
         {item.label}
       </Link>
     )
@@ -84,10 +145,12 @@ export default function Navigation() {
               <Logo />
             </Link>
 
-            <div className="hidden items-baseline md:flex">{visibleNav.map(navLink)}</div>
+            <div className="hidden items-baseline gap-0.5 md:flex">{mainNav.map(navLink)}</div>
           </div>
 
           <div className="flex-1" />
+
+          {showJoin && <QuickJoinButton className="hidden md:inline-flex" />}
 
           <ColorModeToggle />
 
@@ -138,6 +201,24 @@ export default function Navigation() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {accountNav.length > 0 && (
+                  <>
+                    {accountNav.map((item) => {
+                      const Icon = ACCOUNT_ICONS[item.path] ?? Settings
+                      return (
+                        <DropdownMenuItem
+                          key={item.path}
+                          data-testid={`nav-account-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          render={<Link to={item.path} />}
+                        >
+                          <Icon aria-hidden />
+                          {item.label}
+                        </DropdownMenuItem>
+                      )
+                    })}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem onClick={() => signOut()}>
                   <LogOut aria-hidden />
                   Sign out
@@ -155,18 +236,28 @@ export default function Navigation() {
           )}
 
           <button
-            className="inline-flex h-8 w-8 items-center justify-center text-muted-foreground hover:text-foreground md:hidden"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring md:hidden"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            aria-label="Toggle menu"
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-nav"
           >
-            {mobileMenuOpen ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
+            {mobileMenuOpen ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
           </button>
         </div>
 
         {mobileMenuOpen && (
-          <div className="flex flex-col border-t border-border px-2 py-2 md:hidden">
-            {visibleNav.map(navLink)}
+          <div
+            id="mobile-nav"
+            data-testid="mobile-nav"
+            className="flex animate-in flex-col gap-0.5 border-t border-border px-2 py-2 fade-in-0 slide-in-from-top-2 md:hidden"
+          >
+            {showJoin && (
+              <div className="mb-1 border-b border-border px-1 pb-3 pt-1">
+                <QuickJoinForm onJoined={() => setMobileMenuOpen(false)} />
+              </div>
+            )}
+            {mainNav.map(mobileLink)}
           </div>
         )}
       </nav>

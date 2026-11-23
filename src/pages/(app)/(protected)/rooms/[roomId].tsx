@@ -10,6 +10,7 @@ import { Button, EmptyState } from '@/components/ui'
 import { HostLobby } from '@/components/room/HostLobby'
 import { FocusBar } from '@/components/room/FocusBar'
 import { PlayerLobby } from '@/components/room/PlayerLobby'
+import { RoomActivity } from '@/components/room/RoomActivity'
 import { ConnectionBanner } from '@/components/game/ConnectionBanner'
 import { FinalScreen } from '@/components/game/FinalScreen'
 import { HostGame } from '@/components/game/HostGame'
@@ -94,6 +95,7 @@ function RoomBody() {
     <>
       {inGame && <FocusBar state={state} />}
       <RoomScreen state={state} isPlayer={isPlayer} />
+      {inGame && <RoomActivity state={state} />}
     </>
   )
 }

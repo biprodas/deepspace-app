@@ -1,7 +1,8 @@
 /**
- * The host's half of the invite card: pick people from earlier games or type
- * emails, then send. Account holders get a live invite on Home; everyone
- * with an address also gets an email (docs: src/actions/invite.ts).
+ * Invite form, for a game (host's invite card) or a study space: pick people
+ * from earlier games or type emails, then send. Account holders get a live
+ * invite on Home; everyone with an address also gets an email
+ * (docs: src/actions/invite.ts).
  */
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
@@ -14,13 +15,18 @@ import type { InviteOutcome, RecentPlayer } from '@/actions/invite'
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/** Where the invites go: a room (`invitePlayers`) or a space (`inviteToSpace`). */
+export type InviteTarget = { roomId: string } | { spaceId: string }
+
 interface InvitePeopleProps {
-  roomId: string
-  /** Account ids already playing (or hosting); shown as "In game". */
+  target: InviteTarget
+  /** Account ids already in (playing, hosting, or members); marked as such in the list. */
   inRoom: Set<string>
 }
 
-export function InvitePeople({ roomId, inRoom }: InvitePeopleProps) {
+export function InvitePeople({ target, inRoom }: InvitePeopleProps) {
+  const action = 'spaceId' in target ? 'inviteToSpace' : 'invitePlayers'
+  const inLabel = 'spaceId' in target ? 'Member' : 'In game'
   const { run, pending } = useAction()
   const toast = useToast()
   const [recent, setRecent] = useState<RecentPlayer[] | null>(null)
@@ -92,8 +98,8 @@ export function InvitePeople({ roomId, inRoom }: InvitePeopleProps) {
     const allEmails = [...new Set([...emails, ...pendingDraft])].slice(0, MAX_INVITES_PER_CALL - picked.size)
     if (picked.size + allEmails.length === 0) return
 
-    const res = await run<{ results: { label: string; outcome: InviteOutcome }[] }>('invitePlayers', {
-      roomId,
+    const res = await run<{ results: { label: string; outcome: InviteOutcome }[] }>(action, {
+      ...target,
       userIds: [...picked],
       emails: allEmails,
       origin: window.location.origin,
@@ -105,7 +111,7 @@ export function InvitePeople({ roomId, inRoom }: InvitePeopleProps) {
     const skipped = [...by('already_invited'), ...by('already_in')]
     const failed = by('email_failed')
     if (invited.length) toast.success(`Invited ${list(invited)}`)
-    if (skipped.length) toast.info(`Already invited or playing: ${list(skipped)}`)
+    if (skipped.length) toast.info(`Already invited or already in: ${list(skipped)}`)
     if (failed.length) toast.error(`Couldn’t email ${list(failed)}`, 'Share the link with them instead.')
 
     setPicked(new Set())
@@ -204,7 +210,7 @@ export function InvitePeople({ roomId, inRoom }: InvitePeopleProps) {
                       />
                       <Initials name={p.displayName} i={i} className="size-6 text-[10px]" />
                       <span className="min-w-0 flex-1 truncate">{p.displayName}</span>
-                      {playing && <span className="text-[11px] text-muted-foreground">In game</span>}
+                      {playing && <span className="text-[11px] text-muted-foreground">{inLabel}</span>}
                     </label>
                   </li>
                 )
@@ -220,7 +226,7 @@ export function InvitePeople({ roomId, inRoom }: InvitePeopleProps) {
       <Button
         size="sm"
         disabled={!canSend}
-        loading={pending === 'invitePlayers'}
+        loading={pending === action}
         onClick={() => void send()}
         data-testid="send-invites"
       >

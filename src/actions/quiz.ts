@@ -14,6 +14,7 @@ import { GENERATE_QUESTIONS, INTERRUPTED_ERROR, isStaleRun, MODEL, PROMPT_VERSIO
 import { newQuestion, newQuiz, questionEdit, quizTitle } from '../lib/quiz-input'
 import type { AnswerKey, Generation, Question, Quiz, Room } from '../schemas/game-types'
 import type { Env } from '../../worker'
+import { audit } from './audit'
 import {
   ActionError,
   defineAction,
@@ -105,7 +106,7 @@ type SearchHit = { title?: string }
  * Plain search misses misspellings ("Photosysthesis"); a fuzzy search
  * (`term~`) finds what they meant, which we offer rather than swap in.
  */
-async function resolveWikipediaTopics(tools: ActionTools, topics: string[]): Promise<string[]> {
+export async function resolveWikipediaTopics(tools: ActionTools, topics: string[]): Promise<string[]> {
   const search = async (query: string) => {
     const res = await tools.integration<SearchHit[]>('wikipedia/search-pages', { query, limit: 1 })
     if (!res.success) throw new ActionError(`Wikipedia search failed: ${res.error}`, 'wikipedia_unavailable')
@@ -201,6 +202,13 @@ const createQuiz = defineAction(newQuiz, async ({ userId, tools, env }, p) => {
     questionCount: p.questionCount,
   })
   unwrap(await tools.update('quizzes', quizId, { generationId }))
+  await audit(tools, userId, {
+    action: 'ai.quiz_generation',
+    targetType: 'quiz',
+    targetId: quizId,
+    targetLabel: quiz.title,
+    meta: { questions: p.questionCount, source: p.sourceType },
+  })
   return { quizId }
 })
 
@@ -227,6 +235,13 @@ const regenerateQuestion = defineAction(
       questionCount: 1,
       replaceQuestionId: p.questionId,
     })
+    await audit(tools, userId, {
+      action: 'ai.quiz_generation',
+      targetType: 'quiz',
+      targetId: quiz.recordId,
+      targetLabel: quiz.data.title,
+      meta: { questions: 1, source: source.data.sourceType },
+    })
     return { generationId }
   },
 )
@@ -242,7 +257,7 @@ const renameQuiz = defineAction(
 
 /** Deletes the quiz with its questions and answer keys. Past rooms keep their rounds. */
 const deleteQuiz = defineAction(z.object({ quizId: recordId }), async ({ userId, tools }, p) => {
-  await loadOwnedQuiz(tools, p.quizId, userId)
+  const quiz = await loadOwnedQuiz(tools, p.quizId, userId)
   await requireNoLiveRoom(tools, p.quizId)
   for (const collection of ['answer_keys', 'questions']) {
     // deleteWhere removes one bounded page per call; drain it.
@@ -252,6 +267,7 @@ const deleteQuiz = defineAction(z.object({ quizId: recordId }), async ({ userId,
     } while (deleted === 500)
   }
   unwrap(await tools.remove('quizzes', p.quizId))
+  await audit(tools, userId, { action: 'quiz.deleted', targetType: 'quiz', targetId: p.quizId, targetLabel: quiz.data.title })
   return { quizId: p.quizId }
 })
 

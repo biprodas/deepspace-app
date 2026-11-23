@@ -144,6 +144,7 @@ model Room {
   startedAt      DateTime?
   completedAt    DateTime?
   spaceId        String?   // Space.recordId when hosted in a study space
+  scheduledAt    DateTime? // planned start, shown as a countdown; the host still starts
 }
 
 /// One row per question played in a room. Readable by all members:

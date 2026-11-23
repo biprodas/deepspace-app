@@ -206,3 +206,59 @@ test.describe('two accounts', () => {
     await expect(player.page.getByText('You’re a co-host')).toBeVisible({ timeout: 15_000 })
   })
 })
+
+test('a start time: only the host sets it, players see a countdown, it can be removed, and the host still starts', async ({
+  users,
+}) => {
+  test.skip(accounts < 2, 'Needs 2 test accounts (host + player)')
+  const [hostUser, playerUser] = await users(2)
+  const host = await actionsAs(hostUser.page)
+  const player = await actionsAs(playerUser.page)
+  const { roomId, code } = await openRoom(host)
+  await player('joinRoom', { code })
+
+  // The server's rules: host only, in the future, within 30 days.
+  const inAnHour = Date.now() + 60 * 60_000
+  expect(await player('scheduleRoom', { roomId, at: inAnHour })).toMatchObject({ success: false, code: 'forbidden' })
+  expect(await host('scheduleRoom', { roomId, at: Date.now() - 60_000 })).toMatchObject({ success: false, code: 'invalid_params' })
+  expect(await host('scheduleRoom', { roomId, at: Date.now() + 31 * 24 * 60 * 60_000 })).toMatchObject({
+    success: false,
+    code: 'invalid_params',
+  })
+
+  // The host sets it from the lobby ("In 1 hour"); the player sees the countdown live.
+  await hostUser.page.setViewportSize({ width: 1280, height: 900 })
+  await hostUser.page.goto(`/rooms/${roomId}`)
+  await hostUser.page.getByTestId('schedule-open').click({ timeout: 15_000 })
+  await hostUser.page.getByRole('button', { name: 'In 1 hour' }).click()
+  await hostUser.page.getByTestId('schedule-save').click()
+  await expect(hostUser.page.getByTestId('start-countdown')).toContainText('Starts in')
+  await playerUser.page.goto(`/rooms/${roomId}`)
+  const countdown = playerUser.page.getByTestId('start-countdown')
+  await expect(countdown).toHaveAttribute('data-state', 'upcoming', { timeout: 15_000 })
+  await expect(countdown).toContainText(/Starts in\s*(0|1) h \d\d min|Starts in\s*\d+:\d\d/)
+  await expect(countdown.getByRole('button', { name: 'Add to calendar' })).toBeVisible()
+
+  // Add to calendar downloads an .ics file named after the quiz.
+  const download = playerUser.page.waitForEvent('download')
+  await countdown.getByRole('button', { name: 'Add to calendar' }).click()
+  expect((await download).suggestedFilename()).toBe('Lobby test.ics')
+
+  // Removing the time takes the countdown away for everyone.
+  await hostUser.page.getByTestId('schedule-open').click()
+  await hostUser.page.getByTestId('schedule-clear').click()
+  await expect(playerUser.page.getByTestId('start-countdown')).toHaveCount(0, { timeout: 15_000 })
+  await expect(playerUser.page.getByText(/Waiting for .* to start\./)).toBeVisible()
+
+  // A time a moment ahead: once it passes, the host is prompted, and the game starts only when the host starts it.
+  expect(await host('scheduleRoom', { roomId, at: Date.now() + 3_000 })).toMatchObject({ success: true })
+  await expect(hostUser.page.getByTestId('its-time')).toBeVisible({ timeout: 20_000 })
+  await expect(playerUser.page.getByTestId('start-countdown')).toHaveAttribute('data-state', 'due')
+  await expect(playerUser.page.getByTestId('start-countdown')).toContainText('waiting for')
+  await hostUser.page.getByRole('button', { name: 'Start game' }).click()
+  await expect(playerUser.page.getByTestId('start-countdown')).toHaveCount(0, { timeout: 15_000 })
+
+  // Once it's started there's nothing to schedule.
+  expect(await host('scheduleRoom', { roomId, at: inAnHour })).toMatchObject({ success: false, code: 'invalid_state' })
+  await host('endRoom', { roomId })
+})

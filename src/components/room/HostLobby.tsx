@@ -1,7 +1,8 @@
 /**
  * Host (and co-host) lobby, built for a laptop on a projector: the join
  * code big enough to read across a room, the live roster, and the host's
- * controls. The game itself starts here in M3.
+ * controls. The host can set a start time (players see a countdown) and
+ * still starts the game, early or when the time comes.
  */
 
 import { useState } from 'react'
@@ -16,6 +17,9 @@ import { useAction } from '@/lib/use-action'
 import type { RoomState } from '@/lib/use-room'
 import type { RoomPlayer } from '@/schemas/game-types'
 import { PlayerList } from './PlayerList'
+import { ScheduleButton, StartCountdown } from './StartTime'
+import { useServerNow } from '@/lib/clock'
+import { formatStartTimeInline, scheduleState } from '@/lib/schedule'
 
 export function HostLobby({ state }: { state: RoomState }) {
   const { room, quiz, players, online, role } = state
@@ -25,12 +29,16 @@ export function HostLobby({ state }: { state: RoomState }) {
   const [removing, setRemoving] = useState<RoomPlayer | null>(null)
   const [ending, setEnding] = useState(false)
   const navigate = useNavigate()
+  const now = useServerNow(1000, room?.data.scheduledAt !== undefined)
   if (!room) return null
 
   const roomId = room.recordId
   const isHost = role === 'host'
   const link = `${window.location.origin}${joinPath(room.data.code)}`
   const coHosts = room.data.coHostIds ?? []
+  const at = room.data.scheduledAt
+  const timeState = at === undefined ? undefined : scheduleState(at, now)
+  const itsTime = timeState === 'due' && players.length > 0
 
   async function copyLink() {
     try {
@@ -60,6 +68,18 @@ export function HostLobby({ state }: { state: RoomState }) {
           {copied ? <Check /> : <Copy />}
           {copied ? 'Link copied' : 'Copy invite link'}
         </Button>
+
+        {/* The planned start: a countdown for the room to see, and (host) the control to set it. */}
+        {(at !== undefined || isHost) && (
+          <div className="mt-8 w-full border-t border-border pt-6">
+            <StartCountdown room={room} title={quiz?.data.title ?? 'Game'} />
+            {isHost && (
+              <div className={at !== undefined ? 'mt-2' : ''}>
+                <ScheduleButton room={room} />
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="flex min-h-80 flex-col rounded-2xl border border-border bg-card p-6">
@@ -128,11 +148,22 @@ export function HostLobby({ state }: { state: RoomState }) {
               End game
             </Button>
           )}
-          {players.length === 0 && (
+          {players.length === 0 ? (
             <p className="text-sm text-muted-foreground">You can start once someone has joined.</p>
+          ) : itsTime ? (
+            <p className="text-sm font-semibold text-primary-text" data-testid="its-time">
+              It’s time: start the game
+            </p>
+          ) : (
+            timeState === 'upcoming' && (
+              <p className="text-sm text-muted-foreground">
+                Planned for {formatStartTimeInline(at!, now)}; you can start early.
+              </p>
+            )
           )}
           <Button
             size="lg"
+            className={itsTime ? 'shadow-lg ring-4 ring-primary/30' : undefined}
             disabled={players.length === 0}
             loading={pending === 'startQuestion'}
             onClick={() => void run('startQuestion', { roomId })}

@@ -21,6 +21,8 @@ export const roomsSchema: CollectionSchema = {
     time('completedAt'),
     /** The study space this game belongs to, if any (docs/features.md F13). */
     text('spaceId', { immutable: true }),
+    /** Planned start (docs/features.md F3); the host still starts the game. */
+    time('scheduledAt'),
   ],
   uniqueOn: ['code'],
   permissions: serverWritten(true),

@@ -7,6 +7,7 @@
 import type { ActionTools } from 'deepspace/worker'
 import { z } from 'zod'
 import { MAX_PLAYERS } from '../lib/game-rules'
+import { MAX_SCHEDULE_AHEAD_MS } from '../lib/schedule'
 import { mintJoinCode, parseJoinCode } from '../lib/join-code'
 import type { Question, Quiz, Room, RoomPlayer, Round } from '../schemas/game-types'
 import { audit } from './audit'
@@ -226,8 +227,31 @@ const endRoom = defineAction(z.object({ roomId: recordId }), async ({ userId, to
   return { roomId: p.roomId }
 })
 
+/**
+ * Sets (or clears, with `at: null`) the game's planned start time. Lobby
+ * only: once the game has started there's nothing to plan. It's a plan that
+ * players see as a countdown; the host still starts the game.
+ */
+const scheduleRoom = defineAction(
+  z.object({ roomId: recordId, at: z.number().int().nullable() }),
+  async ({ userId, tools }, p) => {
+    const room = await getRecord<Room>(tools, 'rooms', p.roomId, 'Room')
+    requireHost(room, userId)
+    if (room.data.status !== 'lobby') throw new ActionError('The game has already started', 'invalid_state')
+    if (p.at !== null) {
+      const now = Date.now()
+      if (p.at <= now) throw new ActionError('Pick a time in the future', 'invalid_params')
+      if (p.at > now + MAX_SCHEDULE_AHEAD_MS) throw new ActionError('Pick a time within the next 30 days', 'invalid_params')
+    }
+    // null clears the column; an absent field would leave the old time in place.
+    unwrap(await tools.update('rooms', p.roomId, { scheduledAt: p.at }))
+    return { roomId: p.roomId, scheduledAt: p.at }
+  },
+)
+
 export const roomActions = {
   createRoom,
+  scheduleRoom,
   joinRoom,
   removePlayer,
   addCoHost,

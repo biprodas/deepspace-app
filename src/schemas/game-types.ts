@@ -95,6 +95,8 @@ export interface Room {
   completedAt?: number
   /** The study space this game belongs to, if any. */
   spaceId?: string
+  /** When the host plans to start (epoch ms); shown as a countdown. The host still starts it. */
+  scheduledAt?: number
 }
 
 export interface Round {

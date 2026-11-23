@@ -72,6 +72,13 @@ Build these end to end before anything in section 2.
   menu). `/join/:code` tries the code as a game, then as a study space, so
   people don't need to know which kind of code they have.
 - Lobby: live list of who's in the room and who's online (presence).
+- Start time (optional): the host sets, changes or removes a planned start
+  in the lobby (`scheduleRoom`: host only, lobby only, in the future, within
+  30 days). Players see a server-synced countdown ("Starts in 12:34 · Today
+  at 7:00 PM") and can add the game to their calendar (.ics). When the time
+  comes the host is prompted ("It's time: start the game") and players see
+  "waiting for the host"; nothing starts by itself, and the host can start
+  early. Invites on Home and the space's games list show the start time.
 - Host controls: start the game, remove a player. A removed player's
   `joinRoom` is refused.
 - **Done when:** two accounts in two browsers see each other join and leave

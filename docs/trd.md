@@ -204,6 +204,7 @@ All in `src/actions/`, exposed at `POST /api/actions/<name>`. Each one:
 | `skipQuestion` | host/co-host | Marks the round `skipped`, no scoring |
 | `pauseRoom` / `resumeRoom` | host/co-host | Stores the round's `remainingMs = deadline − now`; resume sets `deadline = now + remainingMs` |
 | `endRoom` | host | From any state; status `cancelled`, `completedAt` set, results so far kept |
+| `scheduleRoom` | host | Lobby only; sets `scheduledAt` (future, ≤ 30 days ahead) or clears it with `null`. A plan players see as a countdown; the host still starts the game |
 | `getServerTime` | member | Returns `serverNow` for clock-offset sync |
 
 **Added after the first release** (same five steps):

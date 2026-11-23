@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { Gamepad2, Mail, UsersRound, X } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { useAction } from '@/lib/use-action'
+import { formatStartTimeInline } from '@/lib/schedule'
 import { isClosedStatus, type Room, type RoomInvite } from '@/schemas/game-types'
 import type { SpaceInvite } from '@/schemas/space-types'
 
@@ -52,7 +53,13 @@ function GameInviteRow({ inviteId, invite }: { inviteId: string; invite: RoomInv
     <InviteRow
       icon={<Gamepad2 />}
       title={invite.quizTitle}
-      subtitle={`${invite.inviterName} invited you · ${room.data.status === 'lobby' ? 'In the lobby' : 'Game in progress'}`}
+      subtitle={`${invite.inviterName} invited you · ${
+        room.data.status !== 'lobby'
+          ? 'Game in progress'
+          : room.data.scheduledAt !== undefined && room.data.scheduledAt > Date.now()
+            ? `Starts ${formatStartTimeInline(room.data.scheduledAt, Date.now())}`
+            : 'In the lobby'
+      }`}
       joining={pending === `join:${inviteId}`}
       dismissing={pending === `dismiss:${inviteId}`}
       onJoin={async () => {

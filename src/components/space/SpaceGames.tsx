@@ -1,6 +1,7 @@
 /**
- * Games in a space: open ones to jump into, recent finished ones, and for
- * members with a ready quiz, "Host a game" here.
+ * Games in a space: upcoming ones (a start time set) first, then open ones
+ * to jump into and recent finished ones, and for members with a ready quiz,
+ * "Host a game" here.
  */
 
 import { useState } from 'react'
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui'
 import { useAction } from '@/lib/use-action'
+import { formatStartTimeInline } from '@/lib/schedule'
 import type { SpaceState } from '@/lib/use-space'
 import { isClosedStatus, type Quiz } from '@/schemas/game-types'
 
@@ -29,7 +31,13 @@ export function SpaceGames({ state }: { state: SpaceState }) {
   const [quizId, setQuizId] = useState<string>('')
   if (!space) return null
 
-  const open = rooms.filter((r) => !isClosedStatus(r.data.status))
+  const now = Date.now()
+  const upcoming = (r: (typeof rooms)[number]) =>
+    r.data.status === 'lobby' && r.data.scheduledAt !== undefined && r.data.scheduledAt > now
+  // Upcoming games first, soonest first; then the other open ones.
+  const open = rooms
+    .filter((r) => !isClosedStatus(r.data.status))
+    .sort((a, b) => Number(upcoming(b)) - Number(upcoming(a)) || (a.data.scheduledAt ?? 0) - (b.data.scheduledAt ?? 0))
   const finished = rooms.filter((r) => isClosedStatus(r.data.status)).slice(0, 5)
 
   async function host() {
@@ -80,15 +88,18 @@ export function SpaceGames({ state }: { state: SpaceState }) {
         <ul data-testid="space-games" className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {[...open, ...finished].map((room) => {
             const live = !isClosedStatus(room.data.status)
+            const soon = upcoming(room)
             return (
               <li key={room.recordId}>
                 <Link to={`/rooms/${room.recordId}`} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent">
                   <span className="font-mono font-bold tracking-[0.15em]">{room.data.code}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                    {new Date(room.createdAt).toLocaleDateString()}
+                    {soon
+                      ? `Starts ${formatStartTimeInline(room.data.scheduledAt!, now)}`
+                      : new Date(room.createdAt).toLocaleDateString()}
                   </span>
-                  <Badge variant={live ? 'success' : 'secondary'} size="sm">
-                    {live ? (room.data.status === 'lobby' ? 'In the lobby' : 'Live') : 'Finished'}
+                  <Badge variant={soon ? 'info' : live ? 'success' : 'secondary'} size="sm">
+                    {soon ? 'Upcoming' : live ? (room.data.status === 'lobby' ? 'In the lobby' : 'Live') : 'Finished'}
                   </Badge>
                   <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
                 </Link>

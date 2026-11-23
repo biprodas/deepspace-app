@@ -1,12 +1,14 @@
 /**
- * Player lobby, phone-first: confirmation that you're in, who else is, and
- * whether the host is here.
+ * Player lobby, phone-first: confirmation that you're in, who else is,
+ * whether the host is here, and (when the host set one) a countdown to the
+ * planned start.
  */
 
 import { useUserLookup } from 'deepspace'
 import { CheckCircle2, WifiOff } from 'lucide-react'
 import type { RoomState } from '@/lib/use-room'
 import { PlayerList } from './PlayerList'
+import { StartCountdown } from './StartTime'
 
 export function PlayerLobby({ state }: { state: RoomState }) {
   const { room, quiz, players, online, me, userId } = state
@@ -32,9 +34,21 @@ export function PlayerLobby({ state }: { state: RoomState }) {
         <CheckCircle2 className="mx-auto mb-3 size-10 text-correct-text" aria-hidden="true" />
         <h1 className="font-display text-2xl font-bold tracking-tight">You’re in, {me.data.displayName}!</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {quiz?.data.title ? <>“{quiz.data.title}” · </> : null}
-          Waiting for {hostName} to start.
+          {quiz?.data.title ? <>“{quiz.data.title}”</> : null}
+          {room.data.scheduledAt === undefined && (
+            <>
+              {quiz?.data.title ? ' · ' : null}Waiting for {hostName} to start.
+            </>
+          )}
         </p>
+        {room.data.scheduledAt !== undefined && (
+          <StartCountdown
+            room={room}
+            title={quiz?.data.title ?? 'Game'}
+            hostName={hostName}
+            className="mt-5 rounded-xl bg-muted/50 px-4 py-4"
+          />
+        )}
         <p className="mt-4 font-mono text-sm font-bold tracking-[0.18em] text-muted-foreground">
           {room.data.code}
         </p>

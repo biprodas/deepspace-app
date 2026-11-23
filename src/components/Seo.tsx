@@ -23,6 +23,8 @@ export interface SeoProps {
   path?: string
   /** Preview image (1200×630). Absolute, or root-relative to `origin`. */
   ogImage?: string
+  /** What the preview image shows, for people who can't see it. */
+  ogImageAlt?: string
   /** `og:type`; `website` unless the page is an article. */
   type?: 'website' | 'article'
   /** Ask crawlers not to list this page. */
@@ -46,6 +48,7 @@ export function Seo({
   origin,
   path,
   ogImage,
+  ogImageAlt,
   type = 'website',
   noindex = false,
 }: SeoProps): ReactElement {
@@ -62,10 +65,14 @@ export function Seo({
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       {image ? <meta property="og:image" content={image} /> : null}
+      {image ? <meta property="og:image:width" content="1200" /> : null}
+      {image ? <meta property="og:image:height" content="630" /> : null}
+      {image && ogImageAlt ? <meta property="og:image:alt" content={ogImageAlt} /> : null}
       <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       {image ? <meta name="twitter:image" content={image} /> : null}
+      {image && ogImageAlt ? <meta name="twitter:image:alt" content={ogImageAlt} /> : null}
     </>
   )
 }

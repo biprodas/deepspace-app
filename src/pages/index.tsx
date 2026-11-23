@@ -40,6 +40,7 @@ import { Features } from '../components/landing/Features'
 import { HeroWatermarks } from '../components/landing/HeroWatermarks'
 import { MobileJoinBar } from '../components/landing/MobileJoinBar'
 import { QuizPreview } from '../components/landing/QuizPreview'
+import { StudyTogether } from '../components/landing/StudyTogether'
 
 export default function Landing() {
   const navigate = useNavigate()
@@ -55,6 +56,7 @@ export default function Landing() {
   return (
     <>
       <Seo {...seo} path="/" />
+      <StructuredData />
       <div data-testid="static-landing" className="text-base text-foreground md:text-[17px]">
         <LandingHeader />
         <main>
@@ -63,6 +65,7 @@ export default function Landing() {
           <Features />
           <Receipts />
           <PlayerSide />
+          <StudyTogether />
           <Audiences />
           <Faq />
           <CtaBand />
@@ -72,6 +75,37 @@ export default function Landing() {
       </div>
     </>
   )
+}
+
+/**
+ * schema.org JSON-LD: the site and the app it offers, so search and AI answer
+ * engines know what StudyArena is. Only facts the page itself states; no
+ * price or rating (there are none to give).
+ */
+function StructuredData() {
+  const data = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'WebSite', name: 'StudyArena', url: `${seo.origin}/`, description: seo.description },
+      {
+        '@type': 'WebApplication',
+        name: 'StudyArena',
+        url: `${seo.origin}/`,
+        description: seo.description,
+        image: `${seo.origin}${seo.ogImage}`,
+        applicationCategory: 'EducationalApplication',
+        operatingSystem: 'Web browser',
+        featureList: [
+          'Live multiplayer quizzes for up to 50 players',
+          'Questions drafted by AI from Wikipedia topics or your own notes, each quoting its source',
+          'Host review and approval of every question',
+          'Server-run timing and scoring',
+          'Study spaces with shared notes, whiteboards and AI mind maps',
+        ],
+      },
+    ],
+  }
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
 }
 
 function Hero() {
@@ -103,10 +137,22 @@ function Hero() {
       </div>
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pb-16 pt-8 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 md:pb-24 md:pt-20">
         <div className="flex flex-col items-start">
-          <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-sm font-bold shadow-[0_1px_2px_rgba(20,20,43,0.04)]">
-            <span aria-hidden="true" className="live-dot relative size-2.5 rounded-full bg-correct" />
-            Good energy. Great questions.
-          </p>
+          {/* What's new, without touching the headline: a link down to the study-spaces section. */}
+          <a
+            href="#spaces"
+            className="group inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-card py-1.5 pl-1.5 pr-3.5 text-sm font-bold shadow-[0_1px_2px_rgba(20,20,43,0.04)] outline-none transition-colors hover:border-foreground/25 focus-visible:ring-[3px] focus-visible:ring-primary/40"
+          >
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-correct/15 px-2 py-0.5 text-xs text-correct-text">
+              <span aria-hidden="true" className="live-dot relative size-2 rounded-full bg-correct" />
+              New
+            </span>
+            <span className="truncate sm:hidden">Study spaces and AI mind maps</span>
+            <span className="hidden truncate sm:inline">Study spaces, shared notes and AI mind maps</span>
+            <ArrowRight
+              aria-hidden="true"
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+            />
+          </a>
 
           <h1
             id="hero-title"

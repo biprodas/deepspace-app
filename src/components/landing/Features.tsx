@@ -1,8 +1,8 @@
 /**
  * Features: a bento grid of what StudyArena does beyond the three-step flow,
  * each card with a small drawing of the product instead of a stock icon.
- * Every claim maps to a must-have in docs/prd.md §7; the numbers in the
- * drawings (scores, codes, names) are illustrations, not stats.
+ * Every claim maps to a feature in docs/features.md (F1–F12); the numbers
+ * in the drawings (scores, codes, names) are illustrations, not stats.
  */
 
 import type { ReactNode } from 'react'
@@ -16,6 +16,7 @@ import {
   RotateCcw,
   SkipForward,
   Square,
+  Trophy,
   WifiOff,
   X,
 } from 'lucide-react'
@@ -31,7 +32,8 @@ export function Features() {
           <Eyebrow>Features</Eyebrow>
           <H2 id="features-title" className="mt-3">Everything a great quiz night needs</H2>
           <p className="mt-4 text-muted-foreground">
-            Built for live groups: quick to prepare, fair while you play, and useful after the last question.
+            Built for live groups: quick to prepare, fair while you play, tuned to how the room feels, and useful after
+            the last question.
           </p>
         </div>
 
@@ -64,6 +66,19 @@ export function Features() {
             text="The game ends with a podium, and every player gets a list of the questions they missed, with the right answer and the source to read."
           >
             <RecapArt />
+          </Feature>
+          <Feature
+            wide="lg"
+            title="Read the room"
+            text="Run a quick poll, let players flag a question they’re still confused about, and watch emoji reactions float across the screen. Votes stay private; only the totals show."
+          >
+            <RoomArt />
+          </Feature>
+          <Feature
+            title="History and a leaderboard"
+            text="Every game you host or play is saved with its results, and an all-time leaderboard keeps the friendly rivalry going."
+          >
+            <LeaderboardArt />
           </Feature>
         </ul>
       </Container>
@@ -286,6 +301,68 @@ function RecapArt() {
           ))}
         </ul>
       </div>
+    </div>
+  )
+}
+
+function RoomArt() {
+  const options = [
+    { label: 'Ready, next topic', pct: 72, color: 'bg-correct' },
+    { label: 'Need a minute', pct: 28, color: 'bg-answer-c' },
+  ]
+  return (
+    <div className="relative flex w-full max-w-[560px] items-center gap-5">
+      <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3">
+        <p className="text-xs font-bold">Ready for the next topic?</p>
+        <div className="mt-2 space-y-1.5">
+          {options.map((o) => (
+            <div key={o.label} className="text-[11px] font-bold">
+              <div className="flex justify-between">
+                <span>{o.label}</span>
+                <span className="font-mono text-muted-foreground">{o.pct}%</span>
+              </div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                <div className={cn('h-full rounded-full', o.color)} style={{ width: `${o.pct}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] text-muted-foreground">18 votes · only totals are shown</p>
+      </div>
+      <div className="hidden shrink-0 flex-col items-center gap-3 sm:flex">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-answer-c/25 px-3 py-1.5 text-[11px] font-bold ring-1 ring-answer-c/60">
+          <span aria-hidden="true">🤔</span> 3 still confused
+        </span>
+        <div className="flex gap-2 text-2xl" aria-hidden="true">
+          <span className="-translate-y-2">🎉</span>
+          <span>👏</span>
+          <span className="-translate-y-3">🔥</span>
+          <span className="-translate-y-1">🤯</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LeaderboardArt() {
+  const rows = [
+    { name: 'Arjun', pts: '18,420', i: 2 },
+    { name: 'Maya', pts: '16,905', i: 1 },
+    { name: 'Leo', pts: '14,310', i: 3 },
+  ]
+  return (
+    <div className="flex w-full max-w-[240px] flex-col gap-1.5">
+      <p className="mb-0.5 flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
+        <Trophy className="size-3.5 text-answer-c" /> All-time leaderboard
+      </p>
+      {rows.map((r, n) => (
+        <div key={r.name} className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5">
+          <span className="w-3 font-mono text-[11px] font-bold text-muted-foreground">{n + 1}</span>
+          <Initials name={r.name} i={r.i} className="size-6 text-[9px]" />
+          <span className="flex-1 text-xs font-bold">{r.name}</span>
+          <span className="font-mono text-[11px] font-bold">{r.pts}</span>
+        </div>
+      ))}
     </div>
   )
 }

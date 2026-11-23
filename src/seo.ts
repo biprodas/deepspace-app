@@ -25,13 +25,16 @@ declare const __DEEPSPACE_SITE_ORIGIN__: string | undefined
 export const seo = {
   title: 'StudyArena | Live multiplayer quizzes backed by sources',
   description:
-    'Turn a Wikipedia topic or your notes into a live quiz. Approve every question, play together in real time, and see where each answer came from.',
+    'Turn a Wikipedia topic or your notes into a live, sourced quiz, then keep studying together with shared notes, whiteboards and AI mind maps.',
   /** Public origin for canonical URLs, og:url, and the sitemap — no trailing
    *  slash. Replace with the custom domain once one is attached, e.g.
    *  'https://www.example.com'. */
   origin: typeof __DEEPSPACE_SITE_ORIGIN__ === 'string' ? __DEEPSPACE_SITE_ORIGIN__ : 'http://localhost',
-  /** 1200×630 preview image, root-relative to public/ (e.g. '/og.png'). */
-  // ogImage: '/og.png',
+  /** 1200×630 preview image, root-relative to public/. Rendered from a design
+   *  in the landing page's style: the logo, the headline and a quiz card. */
+  ogImage: '/og.png',
+  ogImageAlt:
+    'StudyArena: “Make learning a game everyone wants to play.” beside a quiz card whose answer, Oxygen, is ticked and sourced from Wikipedia.',
   noindex: false,
   /**
    * The signed-in app shell (_spa.html), served for /join/CODE and every

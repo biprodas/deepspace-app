@@ -1,7 +1,7 @@
 /**
  * Landing sections below the hero, in page order: how a game runs, the
- * educator "receipts" story, the player's side, who it's for, FAQ, the final
- * call to action and the footer. Product mockups are drawn with the same
+ * educator "receipts" story, the player's side, (study spaces, in
+ * StudyTogether.tsx), who it's for, FAQ, the final call to action and the footer. Product mockups are drawn with the same
  * answer chips and source labels as the hero preview, and every claim here
  * matches docs/prd.md (no invented stats or testimonials).
  */
@@ -11,7 +11,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpenCheck, Check, GraduationCap, Plus, RefreshCw, ShieldCheck, Sparkles, UserCheck, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AnswerChip, CREATE_QUIZ_PATH, Initials, Logo, PhoneFrame, SourceLabel } from './bits'
-import { JoinCodeForm } from './JoinCodeForm'
+import { focusHeroJoin, JoinCodeForm } from './JoinCodeForm'
 import { pillLink } from './LandingHeader'
 
 export function Container({ children, className }: { children: ReactNode; className?: string }) {
@@ -278,8 +278,7 @@ function PhoneStep({ n, title, caption, children }: { n: number; title: string; 
       </PhoneFrame>
       <div className="mx-auto mt-5 max-w-[250px]">
         <h3 className="font-display text-lg font-bold">
-          <span className="mr-2 font-mono text-sm text-primary-text">0{n}</span>
-          {title}
+          <span className="mr-1.5 font-mono text-sm text-primary-text">0{n}</span> {title}
         </h3>
         <p className="mt-1 text-muted-foreground">{caption}</p>
       </div>
@@ -336,14 +335,40 @@ const FAQS = [
     q: 'Does it work on phones?',
     a: 'Yes, in any modern mobile browser. Hosts usually run the game on a laptop or projector while players answer on their phones.',
   },
+  {
+    q: 'What’s a study space?',
+    a: 'A home for a study group. Members join with a code or link, write notes together, draw on whiteboards and AI mind maps, and host games inside the space. Only members can see what’s in it.',
+  },
+  {
+    q: 'Do I need my own AI account or API key?',
+    a: 'No. StudyArena drafts questions and mind maps for you, with nothing to set up. To keep it fair for everyone, each person can start 10 quiz drafts and 5 mind maps a day.',
+  },
 ]
 
 export function Faq() {
   return (
     <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 py-20 md:py-28">
       <Container className="grid grid-cols-1 gap-10 md:grid-cols-[1fr_1.6fr]">
-        <H2 id="faq-title">Questions, answered</H2>
-        <div className="divide-y divide-border border-y border-border">
+        {/* The title side: a short intro, then (wide screens) a faint "?" watermark
+            with two answer-coloured shapes, as in the hero. It stays in view while
+            the answers scroll past. */}
+        <div className="md:sticky md:top-24 md:self-start">
+          <H2 id="faq-title">Questions, answered</H2>
+          <p className="mt-4 max-w-sm text-muted-foreground">
+            Quick answers about players, sources, the AI and study spaces.
+          </p>
+          <div aria-hidden="true" className="pointer-events-none relative mt-4 hidden h-[260px] select-none md:block">
+            <span
+              className="absolute right-10 top-0 -rotate-[8deg] font-display text-[240px] font-extrabold leading-none text-foreground/[0.06]"
+              style={{ WebkitTextFillColor: 'transparent', WebkitTextStroke: '2px currentColor' }}
+            >
+              ?
+            </span>
+            <span className="absolute right-4 top-4 size-8 rotate-12 rounded-lg bg-answer-c/70" />
+            <span className="absolute bottom-2 right-[190px] size-6 rounded-full bg-answer-a/70" />
+          </div>
+        </div>
+        <div className="divide-y divide-border self-start border-y border-border">
           {FAQS.map((f) => (
             <details key={f.q} className="group py-1">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md py-4 text-lg font-bold outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40 [&::-webkit-details-marker]:hidden">
@@ -371,6 +396,7 @@ export function CtaBand() {
           <span className="size-14 rounded-xl bg-answer-c" />
           <span className="size-14 rounded-xl bg-answer-d" />
         </div>
+        <CtaWatermarks />
         <div className="relative grid grid-cols-1 items-end gap-10 md:grid-cols-[1.2fr_1fr]">
           <div>
             <h2 id="cta-title" className="max-w-lg font-display text-[32px] font-extrabold leading-[1.05] tracking-tight sm:text-5xl">
@@ -390,22 +416,118 @@ export function CtaBand() {
   )
 }
 
-export function LandingFooter() {
+const OUTLINE = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, vectorEffect: 'non-scaling-stroke' } as const
+
+/**
+ * Faint white outlines of the quiz glyphs on the banner, like the hero's
+ * watermarks: a big "?", the answer shapes and a tick. They sit in the
+ * banner's empty middle and corners, never behind the headline or the code
+ * field; the "?" shows on phones (beside the button) and wide screens, where it
+ * fits between the headline and the code field.
+ */
+function CtaWatermarks() {
   return (
-    <footer className="border-t border-border pb-28 pt-10 md:pb-10">
-      <Container className="flex flex-col gap-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <span className="text-foreground"><Logo /></span>
-          <span>Live quizzes, backed by sources.</span>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none text-white/[0.14]">
+      <span
+        className="absolute right-6 top-[150px] rotate-[10deg] font-display text-[110px] font-extrabold leading-none sm:hidden lg:left-[41%] lg:right-auto lg:top-1/2 lg:block lg:-translate-y-1/2 lg:text-[220px]"
+        style={{ WebkitTextFillColor: 'transparent', WebkitTextStroke: '2px currentColor' }}
+      >
+        ?
+      </span>
+      <svg viewBox="0 0 100 100" className="absolute -bottom-14 -left-14 size-44">
+        <circle cx="50" cy="50" r="46" {...OUTLINE} />
+      </svg>
+      <svg viewBox="0 0 100 100" className="absolute left-[57%] top-7 hidden size-14 rotate-12 md:block">
+        <path d="M50 6 96 92H4z" {...OUTLINE} strokeLinejoin="round" />
+      </svg>
+      <svg viewBox="0 0 100 100" className="absolute bottom-6 left-[52%] hidden size-10 md:block">
+        <path d="M50 3 97 50 50 97 3 50z" {...OUTLINE} strokeLinejoin="round" />
+      </svg>
+      <svg viewBox="0 0 100 100" className="absolute right-[30%] top-9 hidden size-12 -rotate-6 md:block">
+        <path d="M14 54 38 78 88 24" {...OUTLINE} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <svg viewBox="0 0 100 100" className="absolute bottom-10 left-[30%] hidden size-9 rotate-[18deg] lg:block">
+        <rect x="6" y="6" width="88" height="88" rx="14" {...OUTLINE} />
+      </svg>
+    </div>
+  )
+}
+
+const FOOTER_LINK =
+  // inline-block + py-1.5 gives each link a 24px+ touch target; the lists' spacing shrinks to match.
+  'inline-block rounded-sm py-1.5 outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:underline'
+
+/**
+ * Footer: the brand and what StudyArena is, the page's sections, and the ways
+ * in (create, join, sign up, sign in). Every link goes somewhere real.
+ */
+export function LandingFooter() {
+  const explore = [
+    { href: '#how', label: 'How it works' },
+    { href: '#features', label: 'Features' },
+    { href: '#spaces', label: 'Study spaces' },
+    { href: '#educators', label: 'For educators' },
+    { href: '#faq', label: 'FAQ' },
+  ]
+  return (
+    <footer className="border-t border-border pb-28 md:pb-10">
+      <Container className="pt-12">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[2fr_1fr_1fr]">
+          <div className="col-span-2 md:col-span-1">
+            <span className="text-foreground">
+              <Logo />
+            </span>
+            <p className="mt-3 max-w-xs text-sm text-muted-foreground">
+              Live quizzes, backed by sources, and a home for your study group between games.
+            </p>
+          </div>
+
+          <nav aria-label="Explore" className="text-sm">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-foreground">Explore</p>
+            <ul className="mt-3 space-y-0.5 text-muted-foreground">
+              {explore.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href} className={FOOTER_LINK}>
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-label="Get started" className="text-sm">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.18em] text-foreground">Get started</p>
+            <ul className="mt-3 space-y-0.5 text-muted-foreground">
+              <li>
+                <Link to={CREATE_QUIZ_PATH} className={FOOTER_LINK}>
+                  Create a quiz
+                </Link>
+              </li>
+              <li>
+                <a href="#join" onClick={focusHeroJoin} className={FOOTER_LINK}>
+                  Join a game
+                </a>
+              </li>
+              <li>
+                <Link to="/sign-up" className={FOOTER_LINK}>
+                  Create an account
+                </Link>
+              </li>
+              <li>
+                <Link to="/sign-in" className={FOOTER_LINK}>
+                  Sign in
+                </Link>
+              </li>
+            </ul>
+          </nav>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2">
-          <a href="#how" className="hover:text-foreground">How it works</a>
-          <a href="#features" className="hover:text-foreground">Features</a>
-          <a href="#educators" className="hover:text-foreground">For educators</a>
-          <a href="#faq" className="hover:text-foreground">FAQ</a>
-          <Link to="/sign-in" className="hover:text-foreground">Sign in</Link>
-          <span>Built on DeepSpace</span>
-        </nav>
+
+        <div className="mt-12 flex flex-col gap-3 border-t border-border pt-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} StudyArena</p>
+          <a href="https://docs.deep.space/" target="_blank" rel="noreferrer" className={FOOTER_LINK}>
+            Built on DeepSpace
+          </a>
+        </div>
       </Container>
     </footer>
   )
